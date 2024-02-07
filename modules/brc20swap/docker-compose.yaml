@@ -1,0 +1,23 @@
+version: '3'
+services:
+
+   brc20query:
+     build: .
+     image: brc20query:v1.0
+     volumes:
+       - ./conf:/data/conf:ro
+       - /ord/folder:/data/data
+     ports:
+       - "5555:8000"
+     restart: always
+     environment:
+       LISTEN: 0.0.0.0:8000
+       BASE_PATH: ""
+     labels:
+       - "name=brc20query"
+     logging:
+       driver: "json-file"
+       options:
+         labels: "name"
+         max-size: "1g"
+         max-file: "3"
