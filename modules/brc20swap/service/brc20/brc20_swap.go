@@ -13,8 +13,17 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 	brc20DatasLoad := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 	brc20DatasDump := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 	brc20DatasParse := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
+
+	inputFileName := "./data/log_file.txt"
+	log.Printf("loading data...")
+	totalDataCount, err := brc20swapLoader.GetBRC20InputDataLineCount(inputFileName)
+	if err != nil {
+		log.Printf("invalid input, %s", err)
+		return
+	}
+
 	go func(endHeight int) {
-		if err := brc20swapLoader.LoadBRC20InputDataFromOrdLog("./data/log_file.txt", brc20DatasLoad, endHeight); err != nil {
+		if err := brc20swapLoader.LoadBRC20InputDataFromOrdLog(inputFileName, brc20DatasLoad, endHeight); err != nil {
 			log.Printf("invalid input, %s", err)
 		}
 		close(brc20DatasLoad)
@@ -34,7 +43,7 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 	}()
 
 	g := &brc20swapIndexer.BRC20ModuleIndexer{}
-	g.ProcessUpdateLatestBRC20Init(brc20DatasParse)
+	g.ProcessUpdateLatestBRC20Init(brc20DatasParse, totalDataCount)
 
 	model.GSwap = g
 

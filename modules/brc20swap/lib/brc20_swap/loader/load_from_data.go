@@ -11,6 +11,30 @@ import (
 	"strings"
 )
 
+func GetBRC20InputDataLineCount(fname string) (int, error) {
+	file, err := os.Open(fname)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	max := 128 * 1024 * 1024
+	buf := make([]byte, max)
+	scanner.Buffer(buf, max)
+
+	count := 0
+	for scanner.Scan() {
+		count++
+	}
+
+	if err := scanner.Err(); err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 func LoadBRC20InputData(fname string, brc20Datas chan *model.InscriptionBRC20Data, endHeight int) error {
 	file, err := os.Open(fname)
 	if err != nil {

@@ -25,8 +25,7 @@ func isJson(contentBody []byte) bool {
 }
 
 // ProcessUpdateLatestBRC20Loop
-func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas chan *model.InscriptionBRC20Data) {
-	totalDataCount := 100
+func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas chan *model.InscriptionBRC20Data, totalDataCount int) {
 	log.Printf("process swap update. total %d", totalDataCount)
 	idx := 0
 	for data := range brc20Datas {
@@ -175,11 +174,11 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas chan *model
 }
 
 // ProcessUpdateLatestBRC20Init
-func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Init(brc20Datas chan *model.InscriptionBRC20Data) {
+func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Init(brc20Datas chan *model.InscriptionBRC20Data, totalDataCount int) {
 	log.Printf("process swap init. total %d", len(brc20Datas))
 
 	g.initBRC20()
 	g.initModule()
 
-	g.ProcessUpdateLatestBRC20Loop(brc20Datas)
+	g.ProcessUpdateLatestBRC20Loop(brc20Datas, totalDataCount)
 }
