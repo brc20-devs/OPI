@@ -45,6 +45,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 
 	id2number := make(map[string]int, 0)
 	id2content := make(map[string]string, 0)
+	blocktime := 0
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -53,6 +54,17 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if strings.HasSuffix(line, ";block_start") {
 			id2number = make(map[string]int, 0)
 			id2content = make(map[string]string, 0)
+
+			fields := strings.Split(line, ";")
+			if len(fields) != 4 {
+				continue
+			}
+			blocktimeStr := fields[1]
+			blocktime, err = strconv.Atoi(blocktimeStr)
+			if err != nil {
+				continue
+			}
+			continue
 		}
 
 		lineLen := len(line)
@@ -75,6 +87,8 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 
 			idStr := fields[5]
 			id2number[idStr] = number
+
+			continue
 		}
 
 		// content
@@ -105,6 +119,8 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			}
 			idStr := fields[4]
 			id2content[idStr] = contentBody
+
+			continue
 		}
 
 		// sent as fee
@@ -113,7 +129,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			if len(fields) != 6 {
 				continue
 			}
-			// cmd, HEIGHT, insert, sentasfee, ID = fields
+			// cmd, HEIGHT, insert, sentasfee, ID, txid = fields
 
 			heightStr := fields[1]
 			height, err := strconv.Atoi(heightStr)
@@ -152,8 +168,8 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 				CreateIdxKey:      idStr,
 
 				Height:    uint32(height),
+				BlockTime: uint32(blocktime),
 				TxIdx:     1, // fixme
-				BlockTime: 0, // fixme
 				Sequence:  1, // fixme
 			}
 
@@ -170,7 +186,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if len(fields) != 10 {
 			continue
 		}
-		// cmd, HEIGHT, insert, transfer, ID, OLDPOINT, NEWPOINT, ISTOFEE, pkScriptHex = fields
+		// cmd, HEIGHT, insert, transfer, ID, OLDPOINT, NEWPOINT, ISTOFEE, pkScriptHex, satoshi = fields
 		heightStr := fields[1]
 		height, err := strconv.Atoi(heightStr)
 		if err != nil {
@@ -180,7 +196,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			break
 		}
 
-		satoshiStr := fields[1]
+		satoshiStr := fields[9]
 		satoshi, err := strconv.Atoi(satoshiStr)
 		if err != nil {
 			continue
@@ -240,7 +256,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			Vout:       uint32(vout),
 			Offset:     uint64(offset),
 
-			Satoshi:  uint64(satoshi), // fixme
+			Satoshi:  uint64(satoshi),
 			PkScript: string(pkScript),
 			Fee:      0,
 
@@ -249,8 +265,8 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			CreateIdxKey:      idStr,
 
 			Height:    uint32(height),
+			BlockTime: uint32(blocktime),
 			TxIdx:     1,                // fixme
-			BlockTime: 0,                // fixme
 			Sequence:  uint16(sequence), // fixme
 		}
 
