@@ -580,13 +580,19 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let entry = entry
           .map(|entry| InscriptionEntry::load(entry.value()))
           .unwrap();
-        let is_json_or_text = entry.is_json_or_text;
-        if is_json_or_text && txcnt_of_inscr <= INDEX_TX_LIMIT { // only track non-cursed and first two transactions
-          self.write_to_file(format!("cmd;{0};insert;transfer;{1};{old_satpoint};{new_satpoint};{send_to_coinbase};{2};{3}", 
-                    self.height, flotsam.inscription_id, 
-                    hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()), 
-                    new_output_value.unwrap_or(&0)), false)?;
-        }
+        let is_text = entry.is_text;
+        let is_json = entry.is_json;
+        let is_brc20 = entry.is_brc20;
+	if is_json || is_text {
+          if (is_brc20 && txcnt_of_inscr <= INDEX_TX_BRC20_LIMIT) || (
+	      !is_brc20 && !is_json && txcnt_of_inscr <= INDEX_TX_LIMIT) || (
+	      !is_brc20 && is_json && txcnt_of_inscr <= INDEX_TX_JSON_LIMIT) { // only track non-cursed and first two transactions
+              self.write_to_file(format!("cmd;{0};insert;transfer;{1};{old_satpoint};{new_satpoint};{send_to_coinbase};{2};{3};{txcnt_of_inscr}",
+                      self.height, flotsam.inscription_id,
+                      hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
+                      new_output_value.unwrap_or(&0)), false)?;
+          }
+	}
 
         (
           false,
@@ -751,10 +757,10 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           }
         }
 
-        if !unbound && is_json_or_text {
-          self.write_to_file(format!("cmd;{0};insert;transfer;{1};;{new_satpoint};{send_to_coinbase};{2};{3}", 
-                    self.height, flotsam.inscription_id, 
-                    hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()), 
+        if !unbound && (is_json || is_text) {
+          self.write_to_file(format!("cmd;{0};insert;transfer;{1};;{new_satpoint};{send_to_coinbase};{2};{3};0",
+                    self.height, flotsam.inscription_id,
+                    hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
                     new_output_value.unwrap_or(&0)), false)?;
         }
 
