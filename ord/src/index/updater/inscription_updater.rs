@@ -487,7 +487,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     if to_write != "" {
       if self.first_in_block {
         println!("cmd;{0};block_start", self.height,);
-        writeln!(log_file.as_ref().unwrap(), "cmd;{0};block_start", self.height,)?;
+        writeln!(log_file.as_ref().unwrap(), "cmd;{0};{1};block_start", self.height, self.timestamp)?;
       }
       self.first_in_block = false;
 
