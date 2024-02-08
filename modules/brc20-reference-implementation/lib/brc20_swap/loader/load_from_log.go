@@ -183,10 +183,10 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		}
 
 		fields := strings.Split(line, ";")
-		if len(fields) != 10 {
+		if len(fields) != 11 {
 			continue
 		}
-		// cmd, HEIGHT, insert, transfer, ID, OLDPOINT, NEWPOINT, ISTOFEE, pkScriptHex, satoshi = fields
+		// cmd, HEIGHT, insert, transfer, ID, OLDPOINT, NEWPOINT, ISTOFEE, pkScriptHex, satoshi, txcnt = fields
 		heightStr := fields[1]
 		height, err := strconv.Atoi(heightStr)
 		if err != nil {
@@ -194,6 +194,12 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		}
 		if int(height) > endHeight {
 			break
+		}
+
+		sequenceStr := fields[10]
+		sequence, err := strconv.Atoi(sequenceStr)
+		if err != nil {
+			continue
 		}
 
 		satoshiStr := fields[9]
@@ -240,11 +246,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if _, ok := id2content[idStr]; ok {
 			contentBody = id2content[idStr]
 		}
-		sequence := 0
-		oldPoint := fields[5]
-		if oldPoint != "" {
-			sequence = 1
-		}
+
 		if sequence == 0 && (contentBody == "" || number == 0) {
 			continue
 		}
@@ -266,8 +268,8 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 
 			Height:    uint32(height),
 			BlockTime: uint32(blocktime),
-			TxIdx:     1,                // fixme
-			Sequence:  uint16(sequence), // fixme
+			TxIdx:     1, // fixme
+			Sequence:  uint16(sequence),
 		}
 
 		brc20Datas <- data
