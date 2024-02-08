@@ -526,9 +526,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     let txcnt_of_inscr: i64 = self.id_to_txcnt.get(&inscription_id.store())?
         .map(|txcnt| txcnt.value())
         .unwrap_or(0) + 1;
-    if txcnt_of_inscr <= INDEX_TX_LIMIT { // only track first two transactions
-      self.id_to_txcnt.insert(&inscription_id.store(), &txcnt_of_inscr)?;
-    }
+    self.id_to_txcnt.insert(&inscription_id.store(), &txcnt_of_inscr)?;
 
     let (unbound, sequence_number) = match flotsam.origin {
       Origin::Old { old_satpoint } => {
