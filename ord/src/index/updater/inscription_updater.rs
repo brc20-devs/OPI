@@ -424,7 +424,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         });
 
         // ord indexes sent as fee transfers at the end of the block but it would make more sense if they were indexed as soon as they are sent
-        self.write_to_file(format!("cmd;{0};insert;early_transfer_sent_as_fee;{1}", self.height, flotsam.inscription_id), true)?;
+        self.write_to_file(format!("cmd;{0};insert;early_transfer_sent_as_fee;{1};{2}", self.height, flotsam.inscription_id, txid), true)?;
       }
       self.reward += total_input_value - output_value;
       Ok(())
