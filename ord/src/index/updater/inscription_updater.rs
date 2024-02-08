@@ -27,6 +27,8 @@ pub(super) struct Flotsam<'a> {
 
 // tracking first 2 transfers is enough for brc-20 metaprotocol
 const INDEX_TX_LIMIT : i64 = 2;
+const INDEX_TX_JSON_LIMIT : i64 = 100;
+const INDEX_TX_BRC20_LIMIT : i64 = 2;
 
 #[derive(Debug, Clone)]
 enum Origin {
