@@ -450,6 +450,42 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     unreachable!()
   }
 
+  fn is_brc20(inscription_content_option: &Option<Vec<u8>>) -> bool {
+    if inscription_content_option.is_none() { return false; }
+    let inscription_content = inscription_content_option.as_ref().unwrap();
+    match serde_json::from_slice::<Value>(&inscription_content) {
+        Ok(content) => {
+	    if let Value::Object(map) = content {
+		// p
+                if let Some(p) = map.get("p") {
+		    if p.as_str() != Some("brc-20") {
+			return false;
+		    }
+                } else {
+		    return false;
+                }
+		// op
+                if let Some(op) = map.get("op") {
+		    if op.as_str() != Some("deploy") && op.as_str() != Some("mint") && op.as_str() != Some("transfer") {
+			return false;
+		    }
+                } else {
+		    return false;
+                }
+		// tick
+                if let Some(_) = map.get("tick") {
+		    return true;
+                } else{
+		    return false
+		}
+	    } else {
+                false
+	    }
+        },
+        Err(_) => false,
+    }
+  }
+
   fn is_json(inscription_content_option: &Option<Vec<u8>>) -> bool {
     if inscription_content_option.is_none() { return false; }
     let inscription_content = inscription_content_option.as_ref().unwrap();
@@ -594,11 +630,11 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let inscription_content = inscription.body;
         let inscription_content_type = inscription.content_type;
         let inscription_metaprotocol = inscription.metaprotocol;
+        let is_brc20 = Self::is_brc20(&inscription_content);
         let is_json = Self::is_json(&inscription_content);
         let is_text = Self::is_text(&inscription_content_type);
-        let is_json_or_text = is_json || is_text;
-        
-        if !unbound && is_json_or_text {
+
+        if !unbound && (is_json || is_text) {
           self.write_to_file(format!("cmd;{0};insert;number_to_id;{1};{2};{3}", self.height, inscription_number, flotsam.inscription_id, if cursed_for_brc20 {"1"} else {"0"}), false)?;
           // write content as minified json
           if is_json {
@@ -691,7 +727,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             sat,
             sequence_number,
             timestamp: self.timestamp,
-            is_json_or_text,
+            is_text,
+	    is_json,
+	    is_brc20,
             is_cursed_for_brc20: cursed_for_brc20,
           }
           .store(),
