@@ -110,7 +110,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		// sent as fee
 		if lineLen > sentAsFeeLen && strings.Contains(line[:sentAsFeeLen], "early_transfer_sent_as_fee") {
 			fields := strings.Split(line, ";")
-			if len(fields) != 5 {
+			if len(fields) != 6 {
 				continue
 			}
 			// cmd, HEIGHT, insert, sentasfee, ID = fields
@@ -131,9 +131,14 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 				continue
 			}
 
+			txid, err := hex.DecodeString(fields[5])
+			if err != nil {
+				return err
+			}
+
 			data := &model.InscriptionBRC20Data{
 				IsTransfer: true,
-				TxId:       "0000000000000000000000000000000000000000000000000000000000000000",
+				TxId:       string(utils.ReverseBytes(txid)),
 				Idx:        uint32(idx),
 				Vout:       0,
 				Offset:     0,
@@ -162,7 +167,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		}
 
 		fields := strings.Split(line, ";")
-		if len(fields) != 9 {
+		if len(fields) != 10 {
 			continue
 		}
 		// cmd, HEIGHT, insert, transfer, ID, OLDPOINT, NEWPOINT, ISTOFEE, pkScriptHex = fields
@@ -173,6 +178,12 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		}
 		if int(height) > endHeight {
 			break
+		}
+
+		satoshiStr := fields[1]
+		satoshi, err := strconv.Atoi(satoshiStr)
+		if err != nil {
+			continue
 		}
 
 		pkScript, err := hex.DecodeString(fields[8])
@@ -229,7 +240,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			Vout:       uint32(vout),
 			Offset:     uint64(offset),
 
-			Satoshi:  546, // fixme
+			Satoshi:  uint64(satoshi), // fixme
 			PkScript: string(pkScript),
 			Fee:      0,
 
