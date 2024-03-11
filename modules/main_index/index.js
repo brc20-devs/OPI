@@ -290,7 +290,7 @@ async function main_index() {
 
     let ord_sql_st_tm = +(new Date())
 
-    let sql_query_insert_ord_number_to_id = `INSERT into ord_number_to_id (inscription_number, inscription_id, cursed_for_brc20, block_height) values ($1, $2, $3, $4);`
+    let sql_query_insert_ord_number_to_id = `INSERT into ord_number_to_id (inscription_number, inscription_id, cursed_for_brc20, parent_id, block_height) values ($1, $2, $3, $4, $5);`
     let sql_query_insert_sent_as_fee_transfer = `INSERT into ord_transfers (id, inscription_id, block_height, old_satpoint, new_satpoint, new_pkScript, new_wallet, sent_as_fee, new_output_value, sent_as_fee_txid, txcnt) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11);`
     let sql_query_insert_transfer = `INSERT into ord_transfers (id, inscription_id, block_height, old_satpoint, new_satpoint, new_pkScript, new_wallet, sent_as_fee, new_output_value, txcnt) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);`
     let sql_query_insert_content = `INSERT into ord_content (inscription_id, content, content_type, metaprotocol, block_height) values ($1, $2, $3, $4, $5);`
@@ -340,7 +340,9 @@ async function main_index() {
       else if (parts[2] == "insert") {
         if (parts[3] == "number_to_id") {
           if (block_height > current_height) {
-            running_promises.push(execute_on_db(sql_query_insert_ord_number_to_id, [parseInt(parts[4]), parts[5], parts[6] == "1", block_height]))
+            let parent = parts[7]
+            if (parent == "") parent = null
+            running_promises.push(execute_on_db(sql_query_insert_ord_number_to_id, [parseInt(parts[4]), parts[5], parts[6] == "1", parent, block_height]))
             new_inscription_count += 1
             ord_sql_query_count += 1
           }
