@@ -18,7 +18,8 @@ type BRC20ModuleIndexer struct {
 	InscriptionsValidBRC20DataMap map[string]*model.InscriptionBRC20InfoResp
 
 	// inner valid transfer
-	InscriptionsValidTransferMap map[string]*model.InscriptionBRC20TickInfo
+	InscriptionsTransferRemoveMap map[string]struct{} // todo
+	InscriptionsValidTransferMap  map[string]*model.InscriptionBRC20TickInfo
 	// inner invalid transfer
 	InscriptionsInvalidTransferMap map[string]*model.InscriptionBRC20TickInfo
 
@@ -33,14 +34,17 @@ type BRC20ModuleIndexer struct {
 	UsersModuleWithLpTokenMap map[string]string
 
 	// runtime for approve
+	InscriptionsApproveRemoveMap  map[string]struct{}                        // todo
 	InscriptionsValidApproveMap   map[string]*model.InscriptionBRC20SwapInfo // inner valid approve
 	InscriptionsInvalidApproveMap map[string]*model.InscriptionBRC20SwapInfo
 
 	// runtime for conditional approve
+	InscriptionsCondApproveRemoveMap         map[string]struct{} // todo
 	InscriptionsValidConditionalApproveMap   map[string]*model.InscriptionBRC20SwapConditionalApproveInfo
 	InscriptionsInvalidConditionalApproveMap map[string]*model.InscriptionBRC20SwapConditionalApproveInfo
 
 	// runtime for commit
+	InscriptionsCommitRemoveMap  map[string]struct{}                    // todo
 	InscriptionsValidCommitMap   map[string]*model.InscriptionBRC20Data // inner valid commit by key
 	InscriptionsInvalidCommitMap map[string]*model.InscriptionBRC20Data
 
