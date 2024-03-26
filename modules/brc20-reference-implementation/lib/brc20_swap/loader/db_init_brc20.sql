@@ -93,18 +93,17 @@ CREATE TABLE public.brc20_swap_info (
 CREATE INDEX brc20_swap_info_block_height_idx ON public.brc20_swap_info USING btree (block_height);
 CREATE INDEX brc20_swap_info_module_id_idx ON public.brc20_swap_info USING btree (module_id);
 
+
 CREATE TABLE public.brc20_swap_commit_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    module_id text NOT NULL,
-    commit_id text NOT NULL,
-    valid boolean,
-    connected boolean
+    create_key text NOT NULL,
+    moved boolean,
 );
 CREATE INDEX brc20_swap_commit_state_block_height_idx ON public.brc20_swap_commit_state USING btree (block_height);
-CREATE INDEX brc20_swap_commit_state_module_id_idx ON public.brc20_swap_commit_state USING btree (module_id);
+CREATE INDEX brc20_swap_commit_state_create_key_idx ON public.brc20_swap_commit_state USING btree (create_key);
 
-CREATE TABLE public.brc20_swap_commit_info (
+CREATE TABLE public.brc20_swap_valid_commit (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
@@ -117,8 +116,20 @@ CREATE TABLE public.brc20_swap_commit_info (
 	 output_offset int8 NOT NULL
     inscription_content jsonb NOT NULL,
 );
-CREATE INDEX brc20_swap_commit_info_block_height_idx ON public.brc20_swap_commit_info USING btree (block_height);
-CREATE INDEX brc20_swap_commit_info_module_id_idx ON public.brc20_swap_commit_info USING btree (module_id);
+CREATE INDEX brc20_swap_valid_commit_block_height_idx ON public.brc20_swap_valid_commit USING btree (block_height);
+CREATE INDEX brc20_swap_valid_commit_module_id_idx ON public.brc20_swap_valid_commit USING btree (module_id);
+
+
+CREATE TABLE public.brc20_swap_commit_chain (
+    id bigserial NOT NULL,
+    block_height int4 NOT NULL,
+    module_id text NOT NULL,
+    commit_id text NOT NULL,
+    valid boolean,
+    connected boolean
+);
+CREATE INDEX brc20_swap_commit_chain_block_height_idx ON public.brc20_swap_commit_chain USING btree (block_height);
+CREATE INDEX brc20_swap_commit_chain_module_id_idx ON public.brc20_swap_commit_chain USING btree (module_id);
 
 
 CREATE TABLE public.brc20_swap_user_balance (

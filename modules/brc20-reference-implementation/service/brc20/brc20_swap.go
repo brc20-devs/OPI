@@ -47,6 +47,8 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 
 	model.GSwap = g
 
+	g.SaveDataToDB(endHeight)
+
 	brc20swapLoader.DumpTickerInfoMap("./data/brc20.output.txt",
 		g.InscriptionsTickerInfoMap,
 		g.UserTokensBalanceData,
