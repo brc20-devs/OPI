@@ -138,7 +138,7 @@ INNER JOIN (
 	return userTokensBalanceMap, nil
 }
 
-func userTokensBalanceMap2TokenUsersBalanceMap(userTokensMap map[string]map[string]*model.BRC20TokenBalance) map[string]map[string]*model.BRC20TokenBalance {
+func UserTokensBalanceMap2TokenUsersBalanceMap(userTokensMap map[string]map[string]*model.BRC20TokenBalance) map[string]map[string]*model.BRC20TokenBalance {
 	tokenUsersMap := make(map[string]map[string]*model.BRC20TokenBalance)
 
 	for pkscript, userTokensBalance := range userTokensMap {
@@ -151,4 +151,67 @@ func userTokensBalanceMap2TokenUsersBalanceMap(userTokensMap map[string]map[stri
 		}
 	}
 	return tokenUsersMap
+}
+
+func LoadFromDBTransferStateMap() (res map[string]struct{}, err error) {
+	rows, err := SwapDB.Query(`
+SELECT t1.block_height, t1.create_key FROM brc20_transfer_state  t1 
+INNER JOIN (
+	SELECT MAX(block_height) as block_height, create_key FROM brc20_transfer_state GROUP BY create_key
+) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key
+WHERE t1.moved = true;
+`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var (
+		height     int
+		create_key string
+	)
+	for rows.Next() {
+		if err := rows.Scan(&height, &create_key); err != nil {
+			return nil, err
+		}
+		res[create_key] = struct{}{}
+	}
+
+	return res, nil
+}
+
+func LoadFromDBValidTransferMap() (res map[string]*model.InscriptionBRC20TickInfo, err error) {
+	rows, err := SwapDB.Query(`
+SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount, 
+	   t1.inscription_number, t1.inscription_id, 
+	   t1.txid, t1.vout, t1.output_value, t1.output_offset
+FROM brc20_valid_transfer t1
+INNER JOIN (
+	SELECT MAX(block_height) as block_height, create_key FROM brc20_valid_transfer GROUP BY create_key
+) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key;
+`)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	res = make(map[string]*model.InscriptionBRC20TickInfo)
+	for rows.Next() {
+		meta := model.InscriptionBRC20Data{
+			// TODO: other meta attrs
+		}
+		t := model.InscriptionBRC20TickInfo{
+			Meta: &meta,
+		}
+		if err := rows.Scan(&t.Height, &t.CreateIdxKey, &t.Tick, &t.PkScript, &t.Amount,
+			&t.InscriptionNumber, &meta.InscriptionId,
+			&t.TxId, &t.Vout, &t.Satoshi, &t.Offset,
+		); err != nil {
+			return nil, err
+		}
+		res[t.CreateIdxKey] = &t
+		log.Println("amount", t.Amount.String())
+	}
+	return res, nil
 }

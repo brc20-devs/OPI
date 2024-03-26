@@ -1,6 +1,7 @@
 package decimal
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"math"
@@ -37,21 +38,57 @@ var precisionFactor [19]*big.Int = [19]*big.Int{
 // Decimal represents a fixed-point decimal number with 18 decimal places
 type Decimal struct {
 	Precition uint
-	Value     *big.Int
+	Val       *big.Int
+}
+
+// Value implements the driver.Valuer interface for the Decimal type
+func (d *Decimal) Value() (driver.Value, error) {
+	if d == nil {
+		return nil, nil
+	}
+	return d.String(), nil
+}
+
+// Scan implements the sql.Scanner interface for the Decimal type
+func (d *Decimal) Scan(value interface{}) error {
+	if value == nil {
+		return nil
+	}
+
+	switch v := value.(type) {
+	case string:
+		dec, err := NewDecimalFromString(v, MAX_PRECISION)
+		if err != nil {
+			return err
+		}
+		d.Precition = dec.Precition
+		d.Val = dec.Val
+	case []byte:
+		dec, err := NewDecimalFromString(string(v), MAX_PRECISION)
+		if err != nil {
+			return err
+		}
+		d.Precition = dec.Precition
+		d.Val = dec.Val
+	default:
+		return errors.New("unsupported value type")
+	}
+
+	return nil
 }
 
 func NewDecimal(v uint64, p uint) *Decimal {
 	if p > MAX_PRECISION {
 		p = MAX_PRECISION
 	}
-	return &Decimal{Precition: p, Value: new(big.Int).SetUint64(v)}
+	return &Decimal{Precition: p, Val: new(big.Int).SetUint64(v)}
 }
 
 func NewDecimalCopy(other *Decimal) *Decimal {
 	if other == nil {
 		return nil
 	}
-	return &Decimal{Precition: other.Precition, Value: new(big.Int).Set(other.Value)}
+	return &Decimal{Precition: other.Precition, Val: new(big.Int).Set(other.Val)}
 }
 
 // NewDecimalFromString creates a Decimal instance from a string
@@ -104,7 +141,7 @@ func NewDecimalFromString(s string, maxPrecision int) (*Decimal, error) {
 		value = value.Add(value, decimalPart)
 	}
 
-	return &Decimal{Precition: uint(maxPrecision), Value: value}, nil
+	return &Decimal{Precition: uint(maxPrecision), Val: value}, nil
 }
 
 func MustNewDecimalFromString(s string, maxPrecision int) *Decimal {
@@ -120,10 +157,10 @@ func (d *Decimal) String() string {
 	if d == nil {
 		return "0"
 	}
-	value := new(big.Int).Abs(d.Value)
+	value := new(big.Int).Abs(d.Val)
 	quotient, remainder := new(big.Int).QuoRem(value, precisionFactor[d.Precition], new(big.Int))
 	sign := ""
-	if d.Value.Sign() < 0 {
+	if d.Val.Sign() < 0 {
 		sign = "-"
 	}
 	if remainder.Sign() == 0 {
@@ -140,18 +177,18 @@ func (d *Decimal) Add(other *Decimal) *Decimal {
 		return nil
 	}
 	if other == nil {
-		value := new(big.Int).Set(d.Value)
-		return &Decimal{Precition: d.Precition, Value: value}
+		value := new(big.Int).Set(d.Val)
+		return &Decimal{Precition: d.Precition, Val: value}
 	}
 	if d == nil {
-		value := new(big.Int).Set(other.Value)
-		return &Decimal{Precition: other.Precition, Value: value}
+		value := new(big.Int).Set(other.Val)
+		return &Decimal{Precition: other.Precition, Val: value}
 	}
 	if d.Precition != other.Precition {
 		panic("precition not match")
 	}
-	value := new(big.Int).Add(d.Value, other.Value)
-	return &Decimal{Precition: d.Precition, Value: value}
+	value := new(big.Int).Add(d.Val, other.Val)
+	return &Decimal{Precition: d.Precition, Val: value}
 }
 
 // Sub subtracts two Decimal instances and returns a new Decimal instance
@@ -160,18 +197,18 @@ func (d *Decimal) Sub(other *Decimal) *Decimal {
 		return nil
 	}
 	if other == nil {
-		value := new(big.Int).Set(d.Value)
-		return &Decimal{Precition: d.Precition, Value: value}
+		value := new(big.Int).Set(d.Val)
+		return &Decimal{Precition: d.Precition, Val: value}
 	}
 	if d == nil {
-		value := new(big.Int).Neg(other.Value)
-		return &Decimal{Precition: other.Precition, Value: value}
+		value := new(big.Int).Neg(other.Val)
+		return &Decimal{Precition: other.Precition, Val: value}
 	}
 	if d.Precition != other.Precition {
 		panic(fmt.Sprintf("precition not match, (%d != %d)", d.Precition, other.Precition))
 	}
-	value := new(big.Int).Sub(d.Value, other.Value)
-	return &Decimal{Precition: d.Precition, Value: value}
+	value := new(big.Int).Sub(d.Val, other.Val)
+	return &Decimal{Precition: d.Precition, Val: value}
 }
 
 // Mul muls two Decimal instances and returns a new Decimal instance
@@ -179,9 +216,9 @@ func (d *Decimal) Mul(other *Decimal) *Decimal {
 	if d == nil || other == nil {
 		return nil
 	}
-	value := new(big.Int).Mul(d.Value, other.Value)
+	value := new(big.Int).Mul(d.Val, other.Val)
 	// value := new(big.Int).Div(value0, precisionFactor[other.Precition])
-	return &Decimal{Precition: d.Precition, Value: value}
+	return &Decimal{Precition: d.Precition, Val: value}
 }
 
 // Sqrt muls two Decimal instances and returns a new Decimal instance
@@ -190,8 +227,8 @@ func (d *Decimal) Sqrt() *Decimal {
 		return nil
 	}
 	// value0 := new(big.Int).Mul(d.Value, precisionFactor[d.Precition])
-	value := new(big.Int).Sqrt(d.Value)
-	return &Decimal{Precition: MAX_PRECISION, Value: value}
+	value := new(big.Int).Sqrt(d.Val)
+	return &Decimal{Precition: MAX_PRECISION, Val: value}
 }
 
 // Div divs two Decimal instances and returns a new Decimal instance
@@ -200,8 +237,8 @@ func (d *Decimal) Div(other *Decimal) *Decimal {
 		return nil
 	}
 	// value0 := new(big.Int).Mul(d.Value, precisionFactor[other.Precition])
-	value := new(big.Int).Div(d.Value, other.Value)
-	return &Decimal{Precition: d.Precition, Value: value}
+	value := new(big.Int).Div(d.Val, other.Val)
+	return &Decimal{Precition: d.Precition, Val: value}
 }
 
 func (d *Decimal) Cmp(other *Decimal) int {
@@ -209,15 +246,15 @@ func (d *Decimal) Cmp(other *Decimal) int {
 		return 0
 	}
 	if other == nil {
-		return d.Value.Sign()
+		return d.Val.Sign()
 	}
 	if d == nil {
-		return -other.Value.Sign()
+		return -other.Val.Sign()
 	}
 	if d.Precition != other.Precition {
 		panic(fmt.Sprintf("precition not match, (%d != %d)", d.Precition, other.Precition))
 	}
-	return d.Value.Cmp(other.Value)
+	return d.Val.Cmp(other.Val)
 }
 
 func (d *Decimal) CmpAlign(other *Decimal) int {
@@ -225,19 +262,19 @@ func (d *Decimal) CmpAlign(other *Decimal) int {
 		return 0
 	}
 	if other == nil {
-		return d.Value.Sign()
+		return d.Val.Sign()
 	}
 	if d == nil {
-		return -other.Value.Sign()
+		return -other.Val.Sign()
 	}
-	return d.Value.Cmp(other.Value)
+	return d.Val.Cmp(other.Val)
 }
 
 func (d *Decimal) Sign() int {
 	if d == nil {
 		return 0
 	}
-	return d.Value.Sign()
+	return d.Val.Sign()
 }
 
 func (d *Decimal) IsOverflowUint64() bool {
@@ -247,7 +284,7 @@ func (d *Decimal) IsOverflowUint64() bool {
 
 	integerPart := new(big.Int).SetUint64(math.MaxUint64)
 	value := new(big.Int).Mul(integerPart, precisionFactor[d.Precition])
-	if d.Value.Cmp(value) > 0 {
+	if d.Val.Cmp(value) > 0 {
 		return true
 	}
 	return false
@@ -257,10 +294,10 @@ func (d *Decimal) Float64() float64 {
 	if d == nil {
 		return 0
 	}
-	value := new(big.Int).Abs(d.Value)
+	value := new(big.Int).Abs(d.Val)
 	quotient, remainder := new(big.Int).QuoRem(value, precisionFactor[d.Precition], new(big.Int))
 	f := float64(quotient.Uint64()) + float64(remainder.Uint64())/math.MaxFloat64
-	if d.Value.Sign() < 0 {
+	if d.Val.Sign() < 0 {
 		return -f
 	}
 	return f

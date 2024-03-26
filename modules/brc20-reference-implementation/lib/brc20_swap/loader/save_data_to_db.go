@@ -192,19 +192,20 @@ func SaveDataToDBValidTransferMap(height int,
 ) {
 	stmtValidTransfer, err := SwapDB.Prepare(`
 INSERT INTO brc20_valid_transfer(block_height, tick, pkscript, amount,
-    inscription_number, inscription_id, txid, vout, output_value, output_offset)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    inscription_number, inscription_id, txid, vout, output_value, output_offset, create_key)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `)
 	if err != nil {
 		log.Fatal("PG Statements Wrong: ", err)
 	}
 
-	for _, transferInfo := range inscriptionsValidTransferMap {
+	for create_key, transferInfo := range inscriptionsValidTransferMap {
 		res, err := stmtValidTransfer.Exec(height, transferInfo.Tick,
 			transferInfo.PkScript,
 			transferInfo.Amount.String(),
 			transferInfo.InscriptionNumber, transferInfo.Meta.GetInscriptionId(),
 			transferInfo.TxId, transferInfo.Vout, transferInfo.Satoshi, transferInfo.Offset,
+			create_key,
 		)
 		if err != nil {
 			log.Fatal("PG Statements Exec Wrong: ", err)
@@ -512,7 +513,7 @@ func SaveDataToDBSwapCommitMap(height int,
 	inscriptionsValidCommitMap map[string]*model.InscriptionBRC20Data,
 ) {
 	stmtValidCommit, err := SwapDB.Prepare(`
-INSERT INTO brc20_swap_commit_info(block_height, module_id, pkscript,
+INSERT INTO brc20_swap_valid_commit(block_height, module_id, pkscript,
     inscription_number, inscription_id, txid, vout, output_value, output_offset, inscription_content)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `)

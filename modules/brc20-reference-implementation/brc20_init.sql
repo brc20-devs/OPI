@@ -30,12 +30,13 @@ CREATE TABLE public.brc20_transfer_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     create_key text NOT NULL,
-    moved boolean,
+    moved boolean
 );
 
 CREATE TABLE public.brc20_valid_transfer (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
+    create_key text NOT NULL,
 	 tick varchar(4) NOT NULL,
 	 pkscript text NOT NULL,
 	 amount numeric(40) NOT NULL,
@@ -71,7 +72,6 @@ CREATE TABLE public.brc20_history (
 	 amount numeric(40) NOT NULL,
 	 available_balance numeric(40) NOT NULL,
 	 transferable_balance numeric(40) NOT NULL,
-
 	 CONSTRAINT brc20_history_pk PRIMARY KEY (id)
 );
 CREATE INDEX brc20_history_block_height_idx ON public.brc20_history USING btree (block_height);
@@ -98,7 +98,7 @@ CREATE TABLE public.brc20_swap_commit_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     create_key text NOT NULL,
-    moved boolean,
+    moved boolean
 );
 CREATE INDEX brc20_swap_commit_state_block_height_idx ON public.brc20_swap_commit_state USING btree (block_height);
 CREATE INDEX brc20_swap_commit_state_create_key_idx ON public.brc20_swap_commit_state USING btree (create_key);
@@ -113,8 +113,8 @@ CREATE TABLE public.brc20_swap_valid_commit (
 	 txid text NOT NULL,
     vout int4 NOT NULL,
 	 output_value int8 NOT NULL,
-	 output_offset int8 NOT NULL
-    inscription_content jsonb NOT NULL,
+	 output_offset int8 NOT NULL,
+    inscription_content jsonb NOT NULL
 );
 CREATE INDEX brc20_swap_valid_commit_block_height_idx ON public.brc20_swap_valid_commit USING btree (block_height);
 CREATE INDEX brc20_swap_valid_commit_module_id_idx ON public.brc20_swap_valid_commit USING btree (module_id);
@@ -154,7 +154,7 @@ CREATE TABLE public.brc20_swap_approve_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     create_key text NOT NULL,
-    moved boolean,
+    moved boolean
 );
 
 CREATE TABLE public.brc20_swap_valid_approve (
@@ -183,7 +183,7 @@ CREATE TABLE public.brc20_swap_cond_approve_state (
 	 balance numeric(40) NOT NULL,
     moved boolean,
 	 pkscript_owner text NOT NULL,
-	 pkscript_delegator text NOT NULL,
+	 pkscript_delegator text NOT NULL
 );
 
 CREATE TABLE public.brc20_swap_valid_cond_approve (
@@ -209,7 +209,7 @@ CREATE TABLE public.brc20_swap_withdraw_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     create_key text NOT NULL,
-    moved boolean,
+    moved boolean
 );
 
 CREATE TABLE public.brc20_swap_valid_withdraw (

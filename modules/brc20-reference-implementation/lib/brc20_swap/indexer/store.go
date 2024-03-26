@@ -7,8 +7,8 @@ import (
 
 // func (g *BRC20ModuleIndexer) SaveDataToDB(height int) {
 
-func (g *BRC20ModuleIndexer) SaveDataToDB(height int) {
-	loader.Init("")
+func (g *BRC20ModuleIndexer) SaveDataToDB(dbConnInfo string, height int) {
+	loader.Init(dbConnInfo)
 	defer loader.SwapDB.Close()
 
 	// ticker info
@@ -45,10 +45,22 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(dbConnInfo string, height int) {
 	loader.Init(dbConnInfo)
 	defer loader.SwapDB.Close()
 
-	if _, err := loader.LoadFromDbTickerInfoMap(); err != nil {
-		log.Fatal("LoadFromDbTickerInfoMap failed: ", err)
+	var err error
+	if g.InscriptionsTickerInfoMap, err = loader.LoadFromDbTickerInfoMap(); err != nil {
+		log.Fatal("LoadFromDBTickerInfoMap failed: ", err)
 	}
-	if _, err := loader.LoadFromDbUserTokensBalanceData([]string{"bpxxx"}, []string{"ordi", "meme"}); err != nil {
-		log.Fatal("LoadFromDbUserTokensBalanceData failed: ", err)
+	// TODO: g.InscriptionsTickerInfoMap.History？
+
+	if g.UserTokensBalanceData, err = loader.LoadFromDbUserTokensBalanceData(nil, nil); err != nil {
+		log.Fatal("LoadFromDBUserTokensBalanceData failed: ", err)
+	}
+	g.TokenUsersBalanceData = loader.UserTokensBalanceMap2TokenUsersBalanceMap(g.UserTokensBalanceData)
+
+	if g.InscriptionsTransferRemoveMap, err = loader.LoadFromDBTransferStateMap(); err != nil {
+		log.Fatal("LoadFromDBTransferStateMap failed: ", err)
+	}
+
+	if g.InscriptionsInvalidTransferMap, err = loader.LoadFromDBValidTransferMap(); err != nil {
+		log.Fatal("LoadFromDBvalidTransferMap failed: ", err)
 	}
 }
