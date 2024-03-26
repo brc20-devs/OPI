@@ -107,6 +107,14 @@ func NewDecimalFromString(s string, maxPrecision int) (*Decimal, error) {
 	return &Decimal{Precition: uint(maxPrecision), Value: value}, nil
 }
 
+func MustNewDecimalFromString(s string, maxPrecision int) *Decimal {
+	val, err := NewDecimalFromString(s, maxPrecision)
+	if err != nil {
+		panic(err)
+	}
+	return val
+}
+
 // String returns the string representation of a Decimal instance
 func (d *Decimal) String() string {
 	if d == nil {

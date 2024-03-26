@@ -20,7 +20,10 @@ const (
 )
 
 func Init(psqlInfo string) {
-	psqlInfo = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", pg_host, pg_port, pg_user, pg_password, pg_dbname)
+	if psqlInfo == "" {
+		psqlInfo = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", pg_host, pg_port, pg_user, pg_password, pg_dbname)
+	}
+
 	var err error
 	SwapDB, err = sql.Open("postgres", psqlInfo)
 	if err != nil {

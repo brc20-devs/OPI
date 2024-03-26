@@ -2,7 +2,10 @@ package indexer
 
 import (
 	"brc20query/lib/brc20_swap/loader"
+	"log"
 )
+
+// func (g *BRC20ModuleIndexer) SaveDataToDB(height int) {
 
 func (g *BRC20ModuleIndexer) SaveDataToDB(height int) {
 	loader.Init("")
@@ -38,5 +41,14 @@ func (g *BRC20ModuleIndexer) SaveDataToDB(height int) {
 
 }
 
-func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
+func (g *BRC20ModuleIndexer) LoadDataFromDB(dbConnInfo string, height int) {
+	loader.Init(dbConnInfo)
+	defer loader.SwapDB.Close()
+
+	if _, err := loader.LoadFromDbTickerInfoMap(); err != nil {
+		log.Fatal("LoadFromDbTickerInfoMap failed: ", err)
+	}
+	if _, err := loader.LoadFromDbUserTokensBalanceData([]string{"bpxxx"}, []string{"ordi", "meme"}); err != nil {
+		log.Fatal("LoadFromDbUserTokensBalanceData failed: ", err)
+	}
 }
