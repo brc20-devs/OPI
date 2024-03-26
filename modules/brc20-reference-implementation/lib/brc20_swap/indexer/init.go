@@ -50,6 +50,11 @@ type BRC20ModuleIndexer struct {
 
 	InscriptionsValidCommitMapById map[string]*model.InscriptionBRC20Data // inner valid commit by id
 
+	// runtime for withdraw
+	InscriptionsWithdrawRemoveMap  map[string]struct{}                        // todo
+	InscriptionsValidWithdrawMap   map[string]*model.InscriptionBRC20SwapInfo // inner valid withdraw by key
+	InscriptionsInvalidWithdrawMap map[string]*model.InscriptionBRC20SwapInfo
+
 	// for gen approve event
 	ThisTxId                                    string
 	TxStaticTransferStatesForConditionalApprove []*model.TransferStateForConditionalApprove
