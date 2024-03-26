@@ -35,7 +35,7 @@ type BRC20ModuleIndexer struct {
 
 	// runtime for approve
 	InscriptionsApproveRemoveMap  map[string]struct{}                        // todo
-	InscriptionsValidApproveMap   map[string]*model.InscriptionBRC20SwapInfo // inner valid approve
+	InscriptionsValidApproveMap   map[string]*model.InscriptionBRC20SwapInfo // inner valid approve [create_key]
 	InscriptionsInvalidApproveMap map[string]*model.InscriptionBRC20SwapInfo
 
 	// runtime for conditional approve

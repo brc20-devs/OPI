@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
@@ -101,4 +102,16 @@ func GetModuleFromScript(script []byte) (module string, ok bool) {
 
 	module = fmt.Sprintf("%si%d", HashString(script[2:34]), idx)
 	return module, true
+}
+
+func GetInnerSwapPoolNameByToken(token0, token1 string) (poolPair string) {
+	token0 = strings.ToLower(token0)
+	token1 = strings.ToLower(token1)
+
+	if token0 > token1 {
+		poolPair = fmt.Sprintf("%s/%s", token1, token0)
+	} else {
+		poolPair = fmt.Sprintf("%s/%s", token0, token1)
+	}
+	return poolPair
 }

@@ -27,7 +27,7 @@ func Init(psqlInfo string) {
 	var err error
 	SwapDB, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
-		log.Fatal("Connect PG Failed: ", err)
+		log.Panic("Connect PG Failed: ", err)
 	}
 
 	SwapDB.SetMaxOpenConns(2000)
@@ -43,7 +43,7 @@ INSERT INTO brc20_ticker_info(block_height, tick, max_supply, decimals, limit_pe
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 	for _, info := range inscriptionsTickerInfoMap {
 		// save ticker info
@@ -55,11 +55,11 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 			info.Deploy.PkScript,
 		)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -73,7 +73,7 @@ INSERT INTO brc20_user_balance(block_height, tick, pkscript, available_balance, 
 VALUES ($1, $2, $3, $4, $5)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for ticker, holdersMap := range tokenUsersBalanceData {
@@ -86,11 +86,11 @@ VALUES ($1, $2, $3, $4, $5)
 				balanceData.TransferableBalance.String(),
 			)
 			if err != nil {
-				log.Fatal("PG Statements Exec Wrong: ", err)
+				log.Panic("PG Statements Exec Wrong: ", err)
 			}
 			id, err := res.RowsAffected()
 			if err != nil {
-				log.Fatal("PG Affecte Wrong: ", err)
+				log.Panic("PG Affecte Wrong: ", err)
 			}
 			fmt.Println(id)
 		}
@@ -122,7 +122,7 @@ INSERT INTO brc20_history(block_height, tick,
 	 transferable_balance) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for _, info := range inscriptionsTickerInfoMap {
@@ -151,11 +151,11 @@ INSERT INTO brc20_history(block_height, tick,
 					h.Amount, h.AvailableBalance, h.TransferableBalance,
 				)
 				if err != nil {
-					log.Fatal("PG Statements Exec Wrong: ", err)
+					log.Panic("PG Statements Exec Wrong: ", err)
 				}
 				id, err := res.RowsAffected()
 				if err != nil {
-					log.Fatal("PG Affecte Wrong: ", err)
+					log.Panic("PG Affecte Wrong: ", err)
 				}
 				fmt.Println(id)
 			}
@@ -171,17 +171,17 @@ INSERT INTO brc20_transfer_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for createKey := range inscriptionsTransferRemoveMap {
 		res, err := stmtTransferState.Exec(height, createKey, true)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -191,28 +191,29 @@ func SaveDataToDBValidTransferMap(height int,
 	inscriptionsValidTransferMap map[string]*model.InscriptionBRC20TickInfo,
 ) {
 	stmtValidTransfer, err := SwapDB.Prepare(`
-INSERT INTO brc20_valid_transfer(block_height, tick, pkscript, amount,
-    inscription_number, inscription_id, txid, vout, output_value, output_offset, create_key)
+INSERT INTO brc20_valid_transfer(block_height, create_key, tick, pkscript, amount,
+    inscription_number, inscription_id, txid, vout, output_value, output_offset)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for create_key, transferInfo := range inscriptionsValidTransferMap {
-		res, err := stmtValidTransfer.Exec(height, transferInfo.Tick,
+		res, err := stmtValidTransfer.Exec(height,
+			create_key,
+			transferInfo.Tick,
 			transferInfo.PkScript,
 			transferInfo.Amount.String(),
 			transferInfo.InscriptionNumber, transferInfo.Meta.GetInscriptionId(),
 			transferInfo.TxId, transferInfo.Vout, transferInfo.Satoshi, transferInfo.Offset,
-			create_key,
 		)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -235,7 +236,7 @@ INSERT INTO brc20_swap_info(block_height, module_id,
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for moduleId, info := range modulesInfoMap {
@@ -250,11 +251,11 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			info.FeeRateSwap,
 		)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -283,7 +284,7 @@ INSERT INTO brc20_swap_history(block_height, module_id,
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for moduleId, info := range modulesInfoMap {
@@ -309,11 +310,11 @@ INSERT INTO brc20_swap_history(block_height, module_id,
 					"", // content
 				)
 				if err != nil {
-					log.Fatal("PG Statements Exec Wrong: ", err)
+					log.Panic("PG Statements Exec Wrong: ", err)
 				}
 				id, err := res.RowsAffected()
 				if err != nil {
-					log.Fatal("PG Affecte Wrong: ", err)
+					log.Panic("PG Affecte Wrong: ", err)
 				}
 				fmt.Println(id)
 			}
@@ -332,16 +333,16 @@ INSERT INTO brc20_swap_approve_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 	for createKey := range inscriptionsApproveRemoveMap {
 		res, err := stmtApproveState.Exec(height, createKey, true)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -351,26 +352,29 @@ func SaveDataToDBSwapApproveMap(height int,
 	inscriptionsValidApproveMap map[string]*model.InscriptionBRC20SwapInfo,
 ) {
 	stmtValidApprove, err := SwapDB.Prepare(`
-INSERT INTO brc20_swap_valid_approve(block_height, module_id, tick, pkscript, amount,
+INSERT INTO brc20_swap_valid_approve(block_height, module_id, create_key, tick, pkscript, amount,
     inscription_number, inscription_id, txid, vout, output_value, output_offset)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
-	for _, approveInfo := range inscriptionsValidApproveMap {
-		res, err := stmtValidApprove.Exec(height, approveInfo.Module, approveInfo.Tick,
+	for createKey, approveInfo := range inscriptionsValidApproveMap {
+		res, err := stmtValidApprove.Exec(height,
+			approveInfo.Module,
+			createKey,
+			approveInfo.Tick,
 			approveInfo.Data.PkScript,
 			approveInfo.Amount.String(),
 			approveInfo.Data.InscriptionNumber, approveInfo.Data.GetInscriptionId(),
 			approveInfo.Data.TxId, approveInfo.Data.Vout, approveInfo.Data.Satoshi, approveInfo.Data.Offset,
 		)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -385,16 +389,16 @@ INSERT INTO brc20_swap_cond_approve_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 	for createKey := range inscriptionsCondApproveRemoveMap {
 		res, err := stmtCondApproveState.Exec(height, createKey, true)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -404,26 +408,29 @@ func SaveDataToDBSwapCondApproveMap(height int,
 	inscriptionsValidConditionalApproveMap map[string]*model.InscriptionBRC20SwapConditionalApproveInfo,
 ) {
 	stmtValidCondApprove, err := SwapDB.Prepare(`
-INSERT INTO brc20_swap_valid_cond_approve(block_height, module_id, tick, pkscript, amount,
+INSERT INTO brc20_swap_valid_cond_approve(block_height, create_key, module_id, tick, pkscript, amount,
     inscription_number, inscription_id, txid, vout, output_value, output_offset)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
-	for _, condApproveInfo := range inscriptionsValidConditionalApproveMap {
-		res, err := stmtValidCondApprove.Exec(height, condApproveInfo.Module, condApproveInfo.Tick,
+	for createKey, condApproveInfo := range inscriptionsValidConditionalApproveMap {
+		res, err := stmtValidCondApprove.Exec(height,
+			createKey,
+			condApproveInfo.Module,
+			condApproveInfo.Tick,
 			condApproveInfo.Data.PkScript,
 			condApproveInfo.Amount.String(),
 			condApproveInfo.Data.InscriptionNumber, condApproveInfo.Data.GetInscriptionId(),
 			condApproveInfo.Data.TxId, condApproveInfo.Data.Vout, condApproveInfo.Data.Satoshi, condApproveInfo.Data.Offset,
 		)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -438,17 +445,17 @@ INSERT INTO brc20_swap_withdraw_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for createKey := range inscriptionsWithdrawRemoveMap {
 		res, err := stmtWithdrawState.Exec(height, createKey, true)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -458,27 +465,30 @@ func SaveDataToDBSwapWithdrawMap(height int,
 	inscriptionsValidWithdrawMap map[string]*model.InscriptionBRC20SwapInfo,
 ) {
 	stmtValidWithdraw, err := SwapDB.Prepare(`
-INSERT INTO brc20_swap_valid_withdraw(block_height, module_id, tick, pkscript, amount,
+INSERT INTO brc20_swap_valid_withdraw(block_height, create_key, module_id, tick, pkscript, amount,
     inscription_number, inscription_id, txid, vout, output_value, output_offset)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("SaveDataToDBSwapWithdrawMap, PG Statements Wrong: ", err)
 	}
 
-	for _, withdrawInfo := range inscriptionsValidWithdrawMap {
-		res, err := stmtValidWithdraw.Exec(height, withdrawInfo.Module, withdrawInfo.Tick,
+	for createKey, withdrawInfo := range inscriptionsValidWithdrawMap {
+		res, err := stmtValidWithdraw.Exec(height,
+			createKey,
+			withdrawInfo.Module,
+			withdrawInfo.Tick,
 			withdrawInfo.Data.PkScript,
 			withdrawInfo.Amount.String(),
 			withdrawInfo.Data.InscriptionNumber, withdrawInfo.Data.GetInscriptionId(),
 			withdrawInfo.Data.TxId, withdrawInfo.Data.Vout, withdrawInfo.Data.Satoshi, withdrawInfo.Data.Offset,
 		)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -494,16 +504,16 @@ INSERT INTO brc20_swap_commit_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 	for createKey := range inscriptionsCommitRemoveMap {
 		res, err := stmtCommitState.Exec(height, createKey, true)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -513,24 +523,24 @@ func SaveDataToDBSwapCommitMap(height int,
 	inscriptionsValidCommitMap map[string]*model.InscriptionBRC20Data,
 ) {
 	stmtValidCommit, err := SwapDB.Prepare(`
-INSERT INTO brc20_swap_valid_commit(block_height, module_id, pkscript,
+INSERT INTO brc20_swap_valid_commit(block_height, module_id, create_key, pkscript,
     inscription_number, inscription_id, txid, vout, output_value, output_offset, inscription_content)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
-	for _, commitInfo := range inscriptionsValidCommitMap {
-		res, err := stmtValidCommit.Exec(height, "commitInfo.Module", commitInfo.PkScript,
+	for createKey, commitInfo := range inscriptionsValidCommitMap {
+		res, err := stmtValidCommit.Exec(height, "commitInfo.Module", createKey, commitInfo.PkScript,
 			commitInfo.InscriptionNumber, commitInfo.GetInscriptionId(),
 			commitInfo.TxId, commitInfo.Vout, commitInfo.Satoshi, commitInfo.Offset, commitInfo.ContentBody,
 		)
 		if err != nil {
-			log.Fatal("PG Statements Exec Wrong: ", err)
+			log.Panic("PG Statements Exec Wrong: ", err)
 		}
 		id, err := res.RowsAffected()
 		if err != nil {
-			log.Fatal("PG Affecte Wrong: ", err)
+			log.Panic("PG Affecte Wrong: ", err)
 		}
 		fmt.Println(id)
 	}
@@ -543,7 +553,7 @@ INSERT INTO brc20_swap_commit_chain(block_height, module_id, commit_id, valid, c
 VALUES ($1, $2, $3, $4, $5)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for moduleId, info := range modulesInfoMap {
@@ -580,11 +590,11 @@ VALUES ($1, $2, $3, $4, $5)
 				state[1], // connected
 			)
 			if err != nil {
-				log.Fatal("PG Statements Exec Wrong: ", err)
+				log.Panic("PG Statements Exec Wrong: ", err)
 			}
 			id, err := res.RowsAffected()
 			if err != nil {
-				log.Fatal("PG Affecte Wrong: ", err)
+				log.Panic("PG Affecte Wrong: ", err)
 			}
 			fmt.Println(id)
 		}
@@ -600,7 +610,7 @@ INSERT INTO brc20_swap_user_balance(block_height, module_id, tick,
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 
 	for moduleId, info := range modulesInfoMap {
@@ -617,11 +627,11 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 					balanceData.WithdrawableBalance.String(),
 				)
 				if err != nil {
-					log.Fatal("PG Statements Exec Wrong: ", err)
+					log.Panic("PG Statements Exec Wrong: ", err)
 				}
 				id, err := res.RowsAffected()
 				if err != nil {
-					log.Fatal("PG Affecte Wrong: ", err)
+					log.Panic("PG Affecte Wrong: ", err)
 				}
 				fmt.Println(id)
 			}
@@ -633,16 +643,19 @@ func SaveDataToDBModulePoolLpBalanceMap(height int,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
 	stmtPoolBalance, err := SwapDB.Prepare(`
-INSERT INTO brc20_swap_pool_balance(block_height, module_id, tick0, tick0_balance, tick1, tick1_balance, lp_balance)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO brc20_swap_pool_balance(block_height, module_id, pool, tick0, tick0_balance, tick1, tick1_balance, lp_balance)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 	for moduleId, info := range modulesInfoMap {
-		for _, swap := range info.SwapPoolTotalBalanceDataMap {
+		for pool, swap := range info.SwapPoolTotalBalanceDataMap {
 			// save swap balance db
-			res, err := stmtPoolBalance.Exec(height, moduleId,
+			res, err := stmtPoolBalance.Exec(
+				height,
+				moduleId,
+				pool,
 				swap.Tick[0],
 				swap.TickBalance[0],
 				swap.Tick[1],
@@ -650,11 +663,11 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 				swap.LpBalance.String(),
 			)
 			if err != nil {
-				log.Fatal("PG Statements Exec Wrong: ", err)
+				log.Panic("PG Statements Exec Wrong: ", err)
 			}
 			id, err := res.RowsAffected()
 			if err != nil {
-				log.Fatal("PG Affecte Wrong: ", err)
+				log.Panic("PG Affecte Wrong: ", err)
 			}
 			fmt.Println(id)
 		}
@@ -669,7 +682,7 @@ INSERT INTO brc20_swap_user_lp_balance(block_height, module_id, pool, pkscript, 
 VALUES ($1, $2, $3, $4, $5)
 `)
 	if err != nil {
-		log.Fatal("PG Statements Wrong: ", err)
+		log.Panic("PG Statements Wrong: ", err)
 	}
 	for moduleId, info := range modulesInfoMap {
 		for ticker, holdersMap := range info.LPTokenUsersBalanceMap {
@@ -681,11 +694,11 @@ VALUES ($1, $2, $3, $4, $5)
 					balanceData.String(),
 				)
 				if err != nil {
-					log.Fatal("PG Statements Exec Wrong: ", err)
+					log.Panic("PG Statements Exec Wrong: ", err)
 				}
 				id, err := res.RowsAffected()
 				if err != nil {
-					log.Fatal("PG Affecte Wrong: ", err)
+					log.Panic("PG Affecte Wrong: ", err)
 				}
 				fmt.Println(id)
 			}

@@ -135,15 +135,7 @@ func (g *BRC20ModuleIndexer) CheckTickVerifyBigInt(tick string, amtStr string) (
 }
 
 func GetLowerInnerPairNameByToken(token0, token1 string) (poolPair string) {
-	token0 = strings.ToLower(token0)
-	token1 = strings.ToLower(token1)
-
-	if token0 > token1 {
-		poolPair = fmt.Sprintf("%s/%s", token1, token0)
-	} else {
-		poolPair = fmt.Sprintf("%s/%s", token0, token1)
-	}
-	return poolPair
+	return utils.GetInnerSwapPoolNameByToken(token0, token1)
 }
 
 func GetLowerPairNameByToken(token0, token1 string) (poolPair string) {
