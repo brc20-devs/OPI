@@ -57,10 +57,13 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 
 	model.GSwap = g
 
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
 
+	log.Printf("saving database...")
 	g.SaveDataToDB(psqlInfo, endHeight)
+	log.Printf("save database ok")
 
+	log.Printf("dumping output...")
 	brc20swapLoader.DumpTickerInfoMap("./data/brc20.output.txt",
 		g.InscriptionsTickerInfoMap,
 		g.UserTokensBalanceData,
@@ -70,4 +73,5 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 	brc20swapLoader.DumpModuleInfoMap("./data/brc20-module.output.txt",
 		g.ModulesInfoMap,
 	)
+	log.Printf("dump output ok")
 }
