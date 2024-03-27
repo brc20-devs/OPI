@@ -10,7 +10,7 @@ var (
 )
 
 func init() {
-	loglevel := "info"
+	loglevel := "debug"
 
 	level := zapcore.DebugLevel
 	if loglevel == "info" {

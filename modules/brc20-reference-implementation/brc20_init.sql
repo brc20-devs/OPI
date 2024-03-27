@@ -29,24 +29,29 @@ CREATE INDEX brc20_user_balance_pkscript_tick_idx ON public.brc20_user_balance U
 CREATE TABLE public.brc20_transfer_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    create_key text NOT NULL,
-    moved boolean,
+    create_key bytea NOT NULL,
+    moved boolean
 );
+CREATE INDEX brc20_transfer_state_block_height_idx ON public.brc20_transfer_state USING btree (block_height);
+CREATE INDEX brc20_transfer_state_create_key_idx ON public.brc20_transfer_state USING btree (create_key);
+
 
 CREATE TABLE public.brc20_valid_transfer (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-	 tick varchar(4) NOT NULL,
-	 pkscript text NOT NULL,
-	 amount numeric(40) NOT NULL,
-	 inscription_number int8 NOT NULL,
-	 inscription_id text NOT NULL,
-	 txid text NOT NULL,
+    create_key bytea NOT NULL,
+	tick varchar(4) NOT NULL,
+	pkscript text NOT NULL,
+	amount numeric(40) NOT NULL,
+	inscription_number int8 NOT NULL,
+	inscription_id text NOT NULL,
+	txid text NOT NULL,
     vout int4 NOT NULL,
-	 output_value int8 NOT NULL,
-	 output_offset int8 NOT NULL
+	output_value int8 NOT NULL,
+	output_offset int8 NOT NULL
 );
 CREATE INDEX brc20_valid_transfer_block_height_idx ON public.brc20_valid_transfer USING btree (block_height);
+CREATE INDEX brc20_valid_transfer_create_key_idx ON public.brc20_valid_transfer USING btree (create_key);
 CREATE INDEX brc20_valid_transfer_pkscript_tick_idx ON public.brc20_valid_transfer USING btree (pkscript, tick);
 
 CREATE TABLE public.brc20_history (
@@ -71,7 +76,6 @@ CREATE TABLE public.brc20_history (
 	 amount numeric(40) NOT NULL,
 	 available_balance numeric(40) NOT NULL,
 	 transferable_balance numeric(40) NOT NULL,
-
 	 CONSTRAINT brc20_history_pk PRIMARY KEY (id)
 );
 CREATE INDEX brc20_history_block_height_idx ON public.brc20_history USING btree (block_height);
@@ -97,8 +101,8 @@ CREATE INDEX brc20_swap_info_module_id_idx ON public.brc20_swap_info USING btree
 CREATE TABLE public.brc20_swap_commit_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    create_key text NOT NULL,
-    moved boolean,
+    create_key bytea NOT NULL,
+    moved boolean
 );
 CREATE INDEX brc20_swap_commit_state_block_height_idx ON public.brc20_swap_commit_state USING btree (block_height);
 CREATE INDEX brc20_swap_commit_state_create_key_idx ON public.brc20_swap_commit_state USING btree (create_key);
@@ -107,17 +111,19 @@ CREATE TABLE public.brc20_swap_valid_commit (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
+    create_key bytea NOT NULL,
 	 pkscript text NOT NULL,
 	 inscription_number int8 NOT NULL,
 	 inscription_id text NOT NULL,
 	 txid text NOT NULL,
     vout int4 NOT NULL,
 	 output_value int8 NOT NULL,
-	 output_offset int8 NOT NULL
-    inscription_content jsonb NOT NULL,
+	 output_offset int8 NOT NULL,
+    inscription_content jsonb NOT NULL
 );
 CREATE INDEX brc20_swap_valid_commit_block_height_idx ON public.brc20_swap_valid_commit USING btree (block_height);
 CREATE INDEX brc20_swap_valid_commit_module_id_idx ON public.brc20_swap_valid_commit USING btree (module_id);
+CREATE INDEX brc20_swap_valid_commit_create_key_idx ON public.brc20_swap_valid_commit USING btree (create_key);
 
 
 CREATE TABLE public.brc20_swap_commit_chain (
@@ -153,42 +159,52 @@ CREATE INDEX brc20_swap_user_balance_pkscript_tick_idx ON public.brc20_swap_user
 CREATE TABLE public.brc20_swap_approve_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    create_key text NOT NULL,
-    moved boolean,
+    create_key bytea NOT NULL,
+    moved boolean
 );
+
+CREATE INDEX brc20_swap_approve_state_block_height_idx ON public.brc20_swap_approve_state USING btree (block_height);
+CREATE INDEX brc20_swap_approve_state_create_key_idx ON public.brc20_swap_approve_state USING btree (create_key);
+
 
 CREATE TABLE public.brc20_swap_valid_approve (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
+    create_key bytea NOT NULL,
     module_id text NOT NULL,
-	 tick varchar(4) NOT NULL,
-	 pkscript text NOT NULL,
-	 amount numeric(40) NOT NULL,
-	 inscription_number int8 NOT NULL,
-	 inscription_id text NOT NULL,
-	 txid text NOT NULL,
+	tick varchar(4) NOT NULL,
+	pkscript text NOT NULL,
+	amount numeric(40) NOT NULL,
+	inscription_number int8 NOT NULL,
+	inscription_id text NOT NULL,
+	txid text NOT NULL,
     vout int4 NOT NULL,
-	 output_value int8 NOT NULL,
-	 output_offset int8 NOT NULL
+	output_value int8 NOT NULL,
+	output_offset int8 NOT NULL
 );
 CREATE INDEX brc20_swap_valid_approve_block_height_idx ON public.brc20_swap_valid_approve USING btree (block_height);
 CREATE INDEX brc20_swap_valid_approve_module_id_idx ON public.brc20_swap_valid_approve USING btree (module_id);
+CREATE INDEX brc20_swap_valid_approve_create_key_idx ON public.brc20_swap_valid_approve USING btree (create_key);
 
 
 -- state of moved
 CREATE TABLE public.brc20_swap_cond_approve_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    create_key text NOT NULL,
-	 balance numeric(40) NOT NULL,
+    create_key bytea NOT NULL,
+	balance numeric(40) NOT NULL,
     moved boolean,
-	 pkscript_owner text NOT NULL,
-	 pkscript_delegator text NOT NULL,
+	pkscript_owner text NOT NULL,
+	pkscript_delegator text NOT NULL
 );
+
+CREATE INDEX brc20_swap_cond_approve_state_block_height_idx ON public.brc20_swap_cond_approve_state USING btree (block_height);
+CREATE INDEX brc20_swap_cond_approve_state_create_key_idx ON public.brc20_swap_cond_approve_state USING btree (create_key);
 
 CREATE TABLE public.brc20_swap_valid_cond_approve (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
+    create_key bytea NOT NULL,
     module_id text NOT NULL,
 	 tick varchar(4) NOT NULL,
 	 pkscript text NOT NULL,
@@ -201,6 +217,7 @@ CREATE TABLE public.brc20_swap_valid_cond_approve (
 	 output_offset int8 NOT NULL
 );
 CREATE INDEX brc20_swap_valid_cond_approve_block_height_idx ON public.brc20_swap_valid_cond_approve USING btree (block_height);
+CREATE INDEX brc20_swap_valid_cond_approve_create_key_idx ON public.brc20_swap_valid_cond_approve USING btree (create_key);
 CREATE INDEX brc20_swap_valid_cond_approve_module_id_idx ON public.brc20_swap_valid_cond_approve USING btree (module_id);
 
 
@@ -208,13 +225,16 @@ CREATE INDEX brc20_swap_valid_cond_approve_module_id_idx ON public.brc20_swap_va
 CREATE TABLE public.brc20_swap_withdraw_state (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    create_key text NOT NULL,
-    moved boolean,
+    create_key bytea NOT NULL,
+    moved boolean
 );
+CREATE INDEX brc20_swap_withdraw_state_block_height_idx ON public.brc20_swap_withdraw_state USING btree (block_height);
+CREATE INDEX brc20_swap_withdraw_state_create_key_idx ON public.brc20_swap_withdraw_state USING btree (create_key);
 
 CREATE TABLE public.brc20_swap_valid_withdraw (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
+    create_key bytea NOT NULL,
     module_id text NOT NULL,
 	 tick varchar(4) NOT NULL,
 	 pkscript text NOT NULL,
@@ -227,31 +247,35 @@ CREATE TABLE public.brc20_swap_valid_withdraw (
 	 output_offset int8 NOT NULL
 );
 CREATE INDEX brc20_swap_valid_withdraw_block_height_idx ON public.brc20_swap_valid_withdraw USING btree (block_height);
+CREATE INDEX brc20_swap_valid_withdraw_create_key_idx ON public.brc20_swap_valid_withdraw USING btree (create_key);
 CREATE INDEX brc20_swap_valid_withdraw_module_id_idx ON public.brc20_swap_valid_withdraw USING btree (module_id);
 
 CREATE TABLE public.brc20_swap_user_lp_balance (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
-	 pool varchar(9) NOT NULL,
-	 pkscript text NOT NULL,
-	 lp_balance numeric(40) NOT NULL
+	pool varchar(9) NOT NULL,
+	pkscript text NOT NULL,
+	lp_balance numeric(40) NOT NULL
 );
 CREATE INDEX brc20_swap_user_lp_balance_block_height_idx ON public.brc20_swap_user_lp_balance USING btree (block_height);
 CREATE INDEX brc20_swap_user_lp_balance_module_id_idx ON public.brc20_swap_user_lp_balance USING btree (module_id);
+CREATE INDEX brc20_swap_user_lp_balance_pool_idx ON public.brc20_swap_user_lp_balance USING btree (pool);
 
 CREATE TABLE public.brc20_swap_pool_balance (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
-	 tick0 varchar(4) NOT NULL,
-	 tick0_balance numeric(40) NOT NULL,
-	 tick1 varchar(4) NOT NULL,
-	 tick1_balance numeric(40) NOT NULL,
-	 lp_balance numeric(40) NOT NULL
+    pool varchar(9) NOT NULL,
+	tick0 varchar(4) NOT NULL,
+	tick0_balance numeric(40) NOT NULL,
+	tick1 varchar(4) NOT NULL,
+	tick1_balance numeric(40) NOT NULL,
+	lp_balance numeric(40) NOT NULL
 );
 CREATE INDEX brc20_swap_pool_balance_block_height_idx ON public.brc20_swap_pool_balance USING btree (block_height);
 CREATE INDEX brc20_swap_pool_balance_module_id_idx ON public.brc20_swap_pool_balance USING btree (module_id);
+CREATE INDEX brc20_swap_pool_balance_pool_idx ON public.brc20_swap_pool_balance USING btree (pool);
 
 CREATE TABLE public.brc20_swap_history (
     id bigserial NOT NULL,

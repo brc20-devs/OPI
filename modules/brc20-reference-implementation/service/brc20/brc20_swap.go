@@ -4,6 +4,7 @@ import (
 	brc20swapIndexer "brc20query/lib/brc20_swap/indexer"
 	brc20swapLoader "brc20query/lib/brc20_swap/loader"
 	brc20swapModel "brc20query/lib/brc20_swap/model"
+
 	"brc20query/model"
 	"log"
 )
