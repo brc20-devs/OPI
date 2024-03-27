@@ -4,9 +4,18 @@ import (
 	brc20swapIndexer "brc20query/lib/brc20_swap/indexer"
 	brc20swapLoader "brc20query/lib/brc20_swap/loader"
 	brc20swapModel "brc20query/lib/brc20_swap/model"
-
 	"brc20query/model"
+	"fmt"
 	"log"
+	"os"
+)
+
+var (
+	DB_CONF_USER     = os.Getenv("DB_USER")
+	DB_CONF_HOST     = os.Getenv("DB_HOST")
+	DB_CONF_PORT     = os.Getenv("DB_PORT")
+	DB_CONF_DATABASE = os.Getenv("DB_DATABASE")
+	DB_CONF_PASSWD   = os.Getenv("DB_PASSWD")
 )
 
 // ProcessUpdateLatestBRC20SwapInit
@@ -48,7 +57,9 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 
 	model.GSwap = g
 
-	g.SaveDataToDB(endHeight)
+	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
+
+	g.SaveDataToDB(psqlInfo, endHeight)
 
 	brc20swapLoader.DumpTickerInfoMap("./data/brc20.output.txt",
 		g.InscriptionsTickerInfoMap,

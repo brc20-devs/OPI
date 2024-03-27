@@ -11,19 +11,7 @@ import (
 
 var SwapDB *sql.DB
 
-const (
-	pg_host     = "10.16.11.95"
-	pg_port     = 5432
-	pg_user     = "postgres"
-	pg_password = "postgres"
-	pg_dbname   = "postgres"
-)
-
 func Init(psqlInfo string) {
-	if psqlInfo == "" {
-		psqlInfo = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", pg_host, pg_port, pg_user, pg_password, pg_dbname)
-	}
-
 	var err error
 	SwapDB, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
