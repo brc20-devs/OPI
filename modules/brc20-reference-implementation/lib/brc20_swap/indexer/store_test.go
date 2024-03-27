@@ -1,7 +1,7 @@
 package indexer
 
 import (
-	"fmt"
+	"os"
 	"testing"
 
 	"brc20query/lib/brc20_swap/decimal"
@@ -15,17 +15,19 @@ var (
 	//pg_password = "postgres"
 	//pg_dbname   = "swapdev"
 
-
-	pg_host     = "localhost"
-	pg_port     = 5432
-	pg_user     = "ordinals"
-	pg_password = ""
-	pg_dbname   = "opi"
-	psqlInfo    string
+	// pg_host     = "localhost"
+	// pg_port     = 5432
+	// pg_user     = "ordinals"
+	// pg_password = ""
+	// pg_dbname   = "opi"
+	psqlInfo string
 )
 
 func init() {
-	psqlInfo = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", pg_host, pg_port, pg_user, pg_password, pg_dbname)
+	psqlInfo = "host=localhost port=5432 user=postgres password=postgres dbname=postgres sslmode=disable"
+	if info := os.Getenv("PG_CONN_INFO"); info != "" {
+		psqlInfo = info
+	}
 }
 
 func TestSavaDataToDb(t *testing.T) {
