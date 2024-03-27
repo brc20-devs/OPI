@@ -2,7 +2,6 @@ package loader
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"brc20query/lib/brc20_swap/decimal"
@@ -91,7 +90,10 @@ INNER JOIN (
 	return tickerInfoMap, nil
 }
 
-func LoadFromDbUserTokensBalanceData(pkscripts, ticks []string) (map[string]map[string]*model.BRC20TokenBalance, error) {
+func LoadFromDbUserTokensBalanceData(pkscripts, ticks []string) (
+	map[string]map[string]*model.BRC20TokenBalance, // [address][ticker]balanc
+	error,
+) {
 	inConds, inCondArgs := buildSQLWhereInStr([][]string{
 		append(pkscripts, "pkscript"),
 		append(ticks, "tick"),
@@ -111,8 +113,8 @@ INNER JOIN (
 `, condSql)
 	args := inCondArgs
 
-	log.Printf("sql: %s", sql)
-	log.Printf("args: %v", args)
+	// log.Printf("sql: %s", sql)
+	// log.Printf("args: %v", args)
 
 	rows, err := SwapDB.Query(sql, args...)
 	if err != nil {
@@ -141,8 +143,8 @@ INNER JOIN (
 			TransferableBalance: decimal.MustNewDecimalFromString(transferable, 0),
 		}
 
-		if _, ok := userTokensBalanceMap[tick]; !ok {
-			userTokensBalanceMap[tick] = make(map[string]*model.BRC20TokenBalance)
+		if _, ok := userTokensBalanceMap[pkscript]; !ok {
+			userTokensBalanceMap[pkscript] = make(map[string]*model.BRC20TokenBalance)
 		}
 
 		userTokensBalanceMap[pkscript][tick] = balance
@@ -152,6 +154,7 @@ INNER JOIN (
 }
 
 func UserTokensBalanceMap2TokenUsersBalanceMap(userTokensMap map[string]map[string]*model.BRC20TokenBalance) map[string]map[string]*model.BRC20TokenBalance {
+	// [ticker][address]balanc
 	tokenUsersMap := make(map[string]map[string]*model.BRC20TokenBalance)
 
 	for pkscript, userTokensBalance := range userTokensMap {
@@ -414,8 +417,8 @@ INNER JOIN (
 `, tickInCondSql)
 	args := append([]any{moduleId}, inArgs...)
 
-	log.Println("query:", query)
-	log.Println("args:", args)
+	// log.Println("query:", query)
+	// log.Println("args:", args)
 
 	rows, err := SwapDB.Query(query, args...)
 	if err != nil {

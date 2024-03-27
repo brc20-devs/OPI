@@ -9,11 +9,18 @@ import (
 )
 
 var (
+	//pg_host     = "localhost"
+	//pg_port     = 5432
+	//pg_user     = "postgres"
+	//pg_password = "postgres"
+	//pg_dbname   = "swapdev"
+
+
 	pg_host     = "localhost"
 	pg_port     = 5432
-	pg_user     = "postgres"
-	pg_password = "postgres"
-	pg_dbname   = "swapdev"
+	pg_user     = "ordinals"
+	pg_password = ""
+	pg_dbname   = "opi"
 	psqlInfo    string
 )
 
