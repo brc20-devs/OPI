@@ -102,10 +102,6 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(dbConnInfo string, height int) {
 		zap.Int("count", len(g.ModulesInfoMap)),
 	)
 
-	for mid, info := range g.ModulesInfoMap {
-		loadFromDBSwapModuleInfo(mid, info)
-	}
-
 	st = time.Now()
 	if g.InscriptionsApproveRemoveMap, err = loader.LoadFromDBSwapApproveStateMap(nil); err != nil {
 		log.Fatal("LoadFromDBSwapApproveStateMap failed: ", err)
@@ -177,6 +173,11 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(dbConnInfo string, height int) {
 		zap.String("duration", time.Since(st).String()),
 		zap.Int("count", len(g.InscriptionsValidWithdrawMap)),
 	)
+
+	for mid, info := range g.ModulesInfoMap {
+		logger.Log.Debug("loadFromDBSwapModuleInfo", zap.String("moduleId", mid))
+		loadFromDBSwapModuleInfo(mid, info)
+	}
 }
 
 func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
@@ -197,7 +198,7 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 		log.Fatal("LoadModuleCommitChain failed: ", err)
 	} else {
 		logger.Log.Debug("LoadModuleCommitChain",
-			zap.String("time", time.Since(st).String()), zap.Int("count", len(ccs)))
+			zap.String("duration", time.Since(st).String()), zap.Int("count", len(ccs)))
 		for _, cc := range ccs {
 			if cc.Valid && cc.Connected {
 				info.CommitIdChainMap[cc.CommitID] = struct{}{}
@@ -214,9 +215,8 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 	if tabm, err := loader.LoadFromDBModuleUserBalanceMap(mid, nil, nil); err != nil {
 		log.Fatal("LoadFromDBModuleUserBalanceMap failed: ", err)
 	} else {
-		logger.Log.Debug("LoadFromDBModuleUserBalanceMap",
-			zap.String("time", time.Since(st).String()), zap.Int("count", len(tabm)))
 		info.TokenUsersBalanceDataMap = tabm
+		info.UsersTokenBalanceDataMap = make(map[string]map[string]*model.BRC20ModuleTokenBalance)
 		for tick, abs := range tabm {
 			for addr, balance := range abs {
 				if _, ok := info.UsersTokenBalanceDataMap[addr]; !ok {
@@ -226,6 +226,12 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 				info.UsersTokenBalanceDataMap[addr][tick] = balance
 			}
 		}
+
+		logger.Log.Debug("LoadFromDBModuleUserBalanceMap",
+			zap.String("duration", time.Since(st).String()),
+			zap.Int("ticks", len(tabm)),
+			zap.Int("addresses", len(info.UsersTokenBalanceDataMap)),
+		)
 	}
 
 	st = time.Now()
@@ -233,7 +239,7 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 		log.Fatal("LoadFromDBModulePoolLpBalanceMap failed: ", err)
 	} else {
 		logger.Log.Debug("LoadFromDBModulePoolLpBalanceMap",
-			zap.String("time", time.Since(st).String()), zap.Int("count", len(poolBalanceMap)))
+			zap.String("duration", time.Since(st).String()), zap.Int("count", len(poolBalanceMap)))
 		info.SwapPoolTotalBalanceDataMap = poolBalanceMap
 	}
 
@@ -242,8 +248,6 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 	if userLpBalanceMap, err := loader.LoadFromDBModuleUserLpBalanceMap(mid, nil, nil); err != nil {
 		log.Fatal("LoadFromDBModuleUserLpBalanceMap failed: ", err)
 	} else {
-		logger.Log.Debug("LoadFromDBModuleUserLpBalanceMap",
-			zap.String("time", time.Since(st).String()), zap.Int("en", len(userLpBalanceMap)))
 		info.LPTokenUsersBalanceMap = userLpBalanceMap
 
 		for pool, abs := range userLpBalanceMap {
@@ -255,6 +259,12 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 				info.UsersLPTokenBalanceMap[addr][pool] = balance
 			}
 		}
+
+		logger.Log.Debug("LoadFromDBModuleUserLpBalanceMap",
+			zap.String("duration", time.Since(st).String()),
+			zap.Int("pools", len(userLpBalanceMap)),
+			zap.Int("addresses", len(info.UsersLPTokenBalanceMap)),
+		)
 	}
 
 }

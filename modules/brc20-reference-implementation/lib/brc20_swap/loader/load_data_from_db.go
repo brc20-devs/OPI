@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/lib/pq"
+
 	"brc20query/lib/brc20_swap/decimal"
 	"brc20query/lib/brc20_swap/model"
-
-	"github.com/lib/pq"
 )
 
 // buildSQLWhereInStr
@@ -368,6 +368,8 @@ INNER JOIN (
 	GROUP BY tick, pkscript
 ) t2 ON t1.block_height = t2.block_height AND t1.tick = t2.tick AND t1.pkscript = t2.pkscript
 `, strings.Join(conds, " AND "))
+	// log.Println("query", query)
+	// log.Println("args", args)
 
 	rows, err := SwapDB.Query(query, args...)
 	if err != nil {
