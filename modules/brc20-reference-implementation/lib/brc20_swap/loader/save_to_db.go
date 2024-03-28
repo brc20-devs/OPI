@@ -34,6 +34,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 	for _, info := range inscriptionsTickerInfoMap {
+		if info.UpdateHeight != height {
+			continue
+		}
 		// save ticker info
 		res, err := stmtTickerInfo.Exec(height, info.Ticker,
 			info.Deploy.Max.String(),
@@ -66,6 +69,10 @@ VALUES ($1, $2, $3, $4, $5)
 	for ticker, holdersMap := range tokenUsersBalanceData {
 		// holders
 		for _, balanceData := range holdersMap {
+			if balanceData.UpdateHeight != height {
+				continue
+			}
+
 			// save balance db
 			res, err := stmtUserBalance.Exec(height, ticker,
 				balanceData.PkScript,
@@ -176,6 +183,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	}
 
 	for create_key, transferInfo := range inscriptionsValidTransferMap {
+		if transferInfo.Height != height {
+			continue
+		}
+
 		res, err := stmtValidTransfer.Exec(height,
 			create_key,
 			transferInfo.Tick,

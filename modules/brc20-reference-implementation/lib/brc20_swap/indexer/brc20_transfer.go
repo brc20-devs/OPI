@@ -122,6 +122,8 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 	}
 
 	// set from
+	fromTokenBalance.UpdateHeight = data.Height
+
 	fromTokenBalance.TransferableBalance = fromTokenBalance.TransferableBalance.Sub(transferInfo.Amount)
 	delete(fromTokenBalance.ValidTransferMap, data.CreateIdxKey)
 
@@ -133,6 +135,8 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 	// userHistoryFrom.History = append(userHistoryFrom.History, fromHistory)
 
 	// set to
+	tokenBalance.UpdateHeight = data.Height
+
 	if data.BlockTime > 0 {
 		tokenBalance.AvailableBalanceSafe = tokenBalance.AvailableBalanceSafe.Add(transferInfo.Amount)
 	}
@@ -176,8 +180,8 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 	moduleInfo.History = append(moduleInfo.History, mHistory)
 
 	// get user's tokens to update
-
 	moduleTokenBalance := moduleInfo.GetUserTokenBalance(transferInfo.Tick, history.PkScriptFrom)
+	moduleTokenBalance.UpdateHeight = data.Height
 	// set module deposit
 	if data.BlockTime > 0 { // how many confirmes ok
 		moduleTokenBalance.SwapAccountBalanceSafe = moduleTokenBalance.SwapAccountBalanceSafe.Add(transferInfo.Amount)
