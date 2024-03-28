@@ -196,6 +196,8 @@ func NewConditionalApproveEvent(senderPkScript, receiverPkScript string, amount,
 
 // module state
 type BRC20ModuleSwapInfo struct {
+	UpdateHeight uint32
+
 	ID                string // module id
 	Name              string // module name
 	DeployerPkScript  string // deployer
@@ -221,7 +223,8 @@ type BRC20ModuleSwapInfo struct {
 
 	// swap
 	// lp token balance of address in module [pool][address]balance
-	LPTokenUsersBalanceMap map[string]map[string]*decimal.Decimal
+	LPTokenUsersBalanceMap        map[string]map[string]*decimal.Decimal
+	LPTokenUsersBalanceUpdatedMap map[string]struct{} // set if update
 
 	// lp token of users in module [address][pool]balance
 	UsersLPTokenBalanceMap map[string]map[string]*decimal.Decimal
@@ -270,7 +273,8 @@ func (m *BRC20ModuleSwapInfo) DeepCopy() (copy *BRC20ModuleSwapInfo) {
 		UsersLPTokenBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
 
 		// lp token balance of address in module [pair][address]balance
-		LPTokenUsersBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
+		LPTokenUsersBalanceMap:        make(map[string]map[string]*decimal.Decimal, 0),
+		LPTokenUsersBalanceUpdatedMap: make(map[string]struct{}, 0),
 
 		// swap total balance
 		// total balance of pool in module [pair]balanceData
@@ -704,6 +708,8 @@ func (in *BRC20ModuleTokenBalance) CherryPick() *BRC20ModuleTokenBalance {
 
 // state of address for each tick, (balance and history)
 type BRC20ModulePoolTotalBalance struct {
+	UpdateHeight uint32
+
 	Tick        [2]string
 	TickBalance [2]*decimal.Decimal
 	LpBalance   *decimal.Decimal
@@ -748,6 +754,8 @@ type InscriptionBRC20SwapInfo struct {
 }
 
 type InscriptionBRC20SwapConditionalApproveInfo struct {
+	UpdateHeight uint32
+
 	Module            string
 	Tick              string
 	Amount            *decimal.Decimal // current amt

@@ -71,6 +71,8 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionRemoveLiquidity(moduleInfo *mo
 			lpFeelpbalance := usersLpBalanceInPool[moduleInfo.LpFeePkScript]
 			lpFeelpbalance = lpFeelpbalance.Add(lpFee)
 			usersLpBalanceInPool[moduleInfo.LpFeePkScript] = lpFeelpbalance
+			// set update flag
+			moduleInfo.LPTokenUsersBalanceUpdatedMap[poolPair+moduleInfo.LpFeePkScript] = struct{}{}
 			// lpFee-lp-balance
 			lpFeelpsBalance, ok := moduleInfo.UsersLPTokenBalanceMap[moduleInfo.LpFeePkScript]
 			if !ok {
@@ -129,7 +131,13 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionRemoveLiquidity(moduleInfo *mo
 	token0Balance.SwapAccountBalance = token0Balance.SwapAccountBalance.Add(amt0)
 	token1Balance.SwapAccountBalance = token1Balance.SwapAccountBalance.Add(amt1)
 
+	// update at height
+	token0Balance.UpdateHeight = g.CurrentHeight
+	token1Balance.UpdateHeight = g.CurrentHeight
+	pool.UpdateHeight = g.CurrentHeight
+
 	pool.LpBalance = pool.LpBalance.Sub(tokenLpAmt) // fixme
+
 	// Deduct token balance in the pool
 	pool.TickBalance[token0Idx] = pool.TickBalance[token0Idx].Sub(amt0)
 	pool.TickBalance[token1Idx] = pool.TickBalance[token1Idx].Sub(amt1)

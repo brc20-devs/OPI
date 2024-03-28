@@ -217,12 +217,12 @@ func SaveDataToDBModuleInfoMap(height uint32,
 
 	stmtSwapInfo, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_info(block_height, module_id,
-	 name,
+    name,
     pkscript_deployer,
     pkscript_sequencer,
     pkscript_gas_to,
     pkscript_lp_fee,
-	 gas_tick,
+    gas_tick,
     fee_rate_swap
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
@@ -232,6 +232,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	}
 
 	for moduleId, info := range modulesInfoMap {
+		if info.UpdateHeight != height {
+			continue
+		}
+
 		// save swap info db
 		res, err := stmtSwapInfo.Exec(height, moduleId,
 			info.Name,
@@ -283,6 +287,10 @@ INSERT INTO brc20_swap_history(block_height, module_id,
 		nValid := 0
 		// history
 		for _, h := range info.History {
+			if h.Height != height {
+				continue
+			}
+
 			if h.Valid {
 				nValid++
 			}
@@ -353,6 +361,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 	for createKey, approveInfo := range inscriptionsValidApproveMap {
+		if approveInfo.Data.Height != height {
+			continue
+		}
+
 		res, err := stmtValidApprove.Exec(height,
 			approveInfo.Module,
 			createKey,
@@ -411,6 +423,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 	for createKey, condApproveInfo := range inscriptionsValidConditionalApproveMap {
+		if condApproveInfo.UpdateHeight != height {
+			continue
+		}
+
 		res, err := stmtValidCondApprove.Exec(height,
 			createKey,
 			condApproveInfo.Module,
@@ -471,6 +487,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	}
 
 	for createKey, withdrawInfo := range inscriptionsValidWithdrawMap {
+		if withdrawInfo.Data.Height != height {
+			continue
+		}
+
 		res, err := stmtValidWithdraw.Exec(height,
 			createKey,
 			withdrawInfo.Module,
@@ -530,6 +550,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 	for createKey, commitInfo := range inscriptionsValidCommitMap {
+		if commitInfo.Height != height {
+			continue
+		}
+
 		res, err := stmtValidCommit.Exec(height, "commitInfo.Module", createKey, commitInfo.PkScript,
 			commitInfo.InscriptionNumber, commitInfo.GetInscriptionId(),
 			commitInfo.TxId, commitInfo.Vout, commitInfo.Satoshi, commitInfo.Offset, commitInfo.ContentBody,
@@ -544,6 +568,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	}
 }
 
+// fixme: save by height
 func SaveDataToDBModuleCommitChainMap(height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 	stmtSwapCommitChain, err := SwapDB.Prepare(`
@@ -614,6 +639,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		for ticker, holdersMap := range info.TokenUsersBalanceDataMap {
 			// holders
 			for _, balanceData := range holdersMap {
+				if balanceData.UpdateHeight != height {
+					continue
+				}
+
 				// save balance db
 				res, err := stmtUserBalance.Exec(height, moduleId, ticker,
 					balanceData.PkScript,
@@ -646,6 +675,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	}
 	for moduleId, info := range modulesInfoMap {
 		for pool, swap := range info.SwapPoolTotalBalanceDataMap {
+			if swap.UpdateHeight != height {
+				continue
+			}
+
 			// save swap balance db
 			res, err := stmtPoolBalance.Exec(
 				height,
@@ -682,6 +715,10 @@ VALUES ($1, $2, $3, $4, $5)
 		for ticker, holdersMap := range info.LPTokenUsersBalanceMap {
 			// holders
 			for holder, balanceData := range holdersMap {
+				if _, ok := info.LPTokenUsersBalanceUpdatedMap[ticker+holder]; !ok {
+					continue
+				}
+
 				// save balance db
 				res, err := stmtLpBalance.Exec(height, moduleId, ticker,
 					holder,

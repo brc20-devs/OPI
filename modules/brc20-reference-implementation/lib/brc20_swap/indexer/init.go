@@ -8,6 +8,12 @@ import (
 )
 
 type BRC20ModuleIndexer struct {
+	// save flag
+	Durty         bool
+	EnableHistory bool
+	// runtime
+	CurrentHeight uint32
+
 	// brc20 base
 	AllHistory     []*model.BRC20History
 	UserAllHistory map[string]*model.BRC20UserHistory
@@ -58,9 +64,6 @@ type BRC20ModuleIndexer struct {
 	// for gen approve event
 	ThisTxId                                    string
 	TxStaticTransferStatesForConditionalApprove []*model.TransferStateForConditionalApprove
-
-	// save flag
-	Durty bool
 }
 
 func (g *BRC20ModuleIndexer) GetBRC20HistoryByUser(pkScript string) (userHistory *model.BRC20UserHistory) {

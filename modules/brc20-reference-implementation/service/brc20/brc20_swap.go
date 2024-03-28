@@ -68,6 +68,8 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	lastHeight := uint32(startHeight)
 	for data := range brc20DatasParse {
 		if len(brc20DatasPerHeight) > 0 && lastHeight != data.Height {
+
+			g.CurrentHeight = lastHeight
 			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeight, len(brc20DatasPerHeight))
 			if g.Durty {
 				log.Printf("height: %d, saving database...", lastHeight)
