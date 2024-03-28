@@ -150,7 +150,7 @@ INSERT INTO brc20_history(block_height, tick,
 }
 
 func SaveDataToDBTransferStateMap(height uint32,
-	inscriptionsTransferRemoveMap map[string]struct{},
+	inscriptionsTransferRemoveMap map[string]uint32,
 ) {
 	stmtTransferState, err := SwapDB.Prepare(`
 INSERT INTO brc20_transfer_state(block_height, create_key, moved)
@@ -160,7 +160,11 @@ VALUES ($1, $2, $3)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for createKey := range inscriptionsTransferRemoveMap {
+	for createKey, removeHeight := range inscriptionsTransferRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtTransferState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -312,7 +316,7 @@ INSERT INTO brc20_swap_history(block_height, module_id,
 
 // approve
 func SaveDataToDBSwapApproveStateMap(height uint32,
-	inscriptionsApproveRemoveMap map[string]struct{},
+	inscriptionsApproveRemoveMap map[string]uint32,
 ) {
 	stmtApproveState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_approve_state(block_height, create_key, moved)
@@ -321,7 +325,11 @@ VALUES ($1, $2, $3)
 	if err != nil {
 		log.Panic("PG Statements Wrong: ", err)
 	}
-	for createKey := range inscriptionsApproveRemoveMap {
+	for createKey, removeHeight := range inscriptionsApproveRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtApproveState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -366,7 +374,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 
 // cond approve
 func SaveDataToDBSwapCondApproveStateMap(height uint32,
-	inscriptionsCondApproveRemoveMap map[string]struct{},
+	inscriptionsCondApproveRemoveMap map[string]uint32,
 ) {
 	stmtCondApproveState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_cond_approve_state(block_height, create_key, moved)
@@ -375,7 +383,11 @@ VALUES ($1, $2, $3)
 	if err != nil {
 		log.Panic("PG Statements Wrong: ", err)
 	}
-	for createKey := range inscriptionsCondApproveRemoveMap {
+	for createKey, removeHeight := range inscriptionsCondApproveRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtCondApproveState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -420,7 +432,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 
 // withdraw
 func SaveDataToDBSwapWithdrawStateMap(height uint32,
-	inscriptionsWithdrawRemoveMap map[string]struct{},
+	inscriptionsWithdrawRemoveMap map[string]uint32,
 ) {
 	stmtWithdrawState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_withdraw_state(block_height, create_key, moved)
@@ -430,7 +442,11 @@ VALUES ($1, $2, $3)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for createKey := range inscriptionsWithdrawRemoveMap {
+	for createKey, removeHeight := range inscriptionsWithdrawRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtWithdrawState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -477,7 +493,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 
 // commit
 func SaveDataToDBSwapCommitStateMap(height uint32,
-	inscriptionsCommitRemoveMap map[string]struct{},
+	inscriptionsCommitRemoveMap map[string]uint32,
 ) {
 	stmtCommitState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_commit_state(block_height, create_key, moved)
@@ -486,7 +502,11 @@ VALUES ($1, $2, $3)
 	if err != nil {
 		log.Panic("PG Statements Wrong: ", err)
 	}
-	for createKey := range inscriptionsCommitRemoveMap {
+	for createKey, removeHeight := range inscriptionsCommitRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtCommitState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)

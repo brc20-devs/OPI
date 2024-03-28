@@ -18,7 +18,7 @@ type BRC20ModuleIndexer struct {
 	InscriptionsValidBRC20DataMap map[string]*model.InscriptionBRC20InfoResp
 
 	// inner valid transfer
-	InscriptionsTransferRemoveMap map[string]struct{} // todo
+	InscriptionsTransferRemoveMap map[string]uint32 // remove at height
 	InscriptionsValidTransferMap  map[string]*model.InscriptionBRC20TickInfo
 	// inner invalid transfer
 	InscriptionsInvalidTransferMap map[string]*model.InscriptionBRC20TickInfo
@@ -34,24 +34,24 @@ type BRC20ModuleIndexer struct {
 	UsersModuleWithLpTokenMap map[string]string
 
 	// runtime for approve
-	InscriptionsApproveRemoveMap  map[string]struct{}                        // todo
+	InscriptionsApproveRemoveMap  map[string]uint32                          // remove at height
 	InscriptionsValidApproveMap   map[string]*model.InscriptionBRC20SwapInfo // inner valid approve [create_key]
 	InscriptionsInvalidApproveMap map[string]*model.InscriptionBRC20SwapInfo
 
 	// runtime for conditional approve
-	InscriptionsCondApproveRemoveMap         map[string]struct{} // todo
+	InscriptionsCondApproveRemoveMap         map[string]uint32 // remove at height
 	InscriptionsValidConditionalApproveMap   map[string]*model.InscriptionBRC20SwapConditionalApproveInfo
 	InscriptionsInvalidConditionalApproveMap map[string]*model.InscriptionBRC20SwapConditionalApproveInfo
 
 	// runtime for commit
-	InscriptionsCommitRemoveMap  map[string]struct{}                    // todo
+	InscriptionsCommitRemoveMap  map[string]uint32                      // remove at height
 	InscriptionsValidCommitMap   map[string]*model.InscriptionBRC20Data // inner valid commit by key
 	InscriptionsInvalidCommitMap map[string]*model.InscriptionBRC20Data
 
 	InscriptionsValidCommitMapById map[string]*model.InscriptionBRC20Data // inner valid commit by id
 
 	// runtime for withdraw
-	InscriptionsWithdrawRemoveMap  map[string]struct{}                        // todo
+	InscriptionsWithdrawRemoveMap  map[string]uint32                          // remove at height
 	InscriptionsValidWithdrawMap   map[string]*model.InscriptionBRC20SwapInfo // inner valid withdraw by key
 	InscriptionsInvalidWithdrawMap map[string]*model.InscriptionBRC20SwapInfo
 
@@ -102,6 +102,7 @@ func (g *BRC20ModuleIndexer) initBRC20() {
 	g.InscriptionsValidBRC20DataMap = make(map[string]*model.InscriptionBRC20InfoResp, 0)
 
 	// inner valid transfer
+	g.InscriptionsTransferRemoveMap = make(map[string]uint32, 0)
 	g.InscriptionsValidTransferMap = make(map[string]*model.InscriptionBRC20TickInfo, 0)
 	// inner invalid transfer
 	g.InscriptionsInvalidTransferMap = make(map[string]*model.InscriptionBRC20TickInfo, 0)
@@ -119,14 +120,17 @@ func (g *BRC20ModuleIndexer) initModule() {
 	g.UsersModuleWithLpTokenMap = make(map[string]string, 0)
 
 	// runtime for approve
+	g.InscriptionsApproveRemoveMap = make(map[string]uint32, 0)
 	g.InscriptionsValidApproveMap = make(map[string]*model.InscriptionBRC20SwapInfo, 0)
 	g.InscriptionsInvalidApproveMap = make(map[string]*model.InscriptionBRC20SwapInfo, 0)
 
 	// runtime for conditional approve
+	g.InscriptionsCondApproveRemoveMap = make(map[string]uint32, 0)
 	g.InscriptionsValidConditionalApproveMap = make(map[string]*model.InscriptionBRC20SwapConditionalApproveInfo, 0)
 	g.InscriptionsInvalidConditionalApproveMap = make(map[string]*model.InscriptionBRC20SwapConditionalApproveInfo, 0)
 
 	// runtime for commit
+	g.InscriptionsCommitRemoveMap = make(map[string]uint32, 0)
 	g.InscriptionsValidCommitMap = make(map[string]*model.InscriptionBRC20Data, 0) // inner valid commit
 	g.InscriptionsInvalidCommitMap = make(map[string]*model.InscriptionBRC20Data, 0)
 
