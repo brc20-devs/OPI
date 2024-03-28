@@ -18,3 +18,4 @@ drop table if exists public.brc20_swap_user_lp_balance;
 drop table if exists public.brc20_swap_pool_balance;
 drop table if exists public.brc20_swap_history;
 drop table if exists public.brc20_swap_stats;
+drop table if exists public.brc20_history_types;

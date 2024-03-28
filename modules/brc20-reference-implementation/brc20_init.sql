@@ -313,3 +313,28 @@ CREATE TABLE public.brc20_swap_stats (
 );
 CREATE INDEX brc20_swap_stats_block_height_idx ON public.brc20_swap_stats USING btree (block_height);
 CREATE INDEX brc20_swap_stats_module_id_idx ON public.brc20_swap_stats USING btree (module_id);
+
+CREATE TABLE public.brc20_history_types (
+	id bigserial NOT NULL,
+	history_type_name text NOT NULL,
+	history_type_id smallint NOT NULL,
+	CONSTRAINT brc20_history_types_pk PRIMARY KEY (id)
+);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-deploy', 0);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-mint', 1);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-transfer', 2);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('transfer', 3);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('send', 4);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('receive', 5);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-module', 6);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-withdraw', 7);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('withdraw-from', 8);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('withdraw-to', 9);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-approve', 10);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('approve', 11);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-conditional-approve', 12);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('conditional-approve', 13);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('approve-from', 14);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('approve-to', 15);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('inscribe-commit', 16);
+INSERT INTO public.brc20_history_types (history_type_name, history_type_id) VALUES ('commit', 17);
