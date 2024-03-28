@@ -32,6 +32,7 @@ type BRC20History struct {
 	Inscription *InscriptionBRC20TickInfoResp
 
 	// param
+	Tick   string
 	Amount string
 
 	// state
@@ -40,7 +41,7 @@ type BRC20History struct {
 	AvailableBalance    string
 }
 
-func NewBRC20History(historyType uint8, isValid bool, isTransfer bool,
+func NewBRC20History(ticker string, historyType uint8, isValid bool, isTransfer bool,
 	from *InscriptionBRC20TickInfo, bal *BRC20TokenBalance, to *InscriptionBRC20Data) *BRC20History {
 	history := &BRC20History{
 		BRC20HistoryBase: BRC20HistoryBase{
@@ -58,6 +59,7 @@ func NewBRC20History(historyType uint8, isValid bool, isTransfer bool,
 			InscriptionId:     fmt.Sprintf("%si%d", utils.HashString([]byte(from.TxId)), from.Idx),
 			Satoshi:           from.Satoshi,
 		},
+		Tick:   ticker,
 		Amount: from.Amount.String(),
 	}
 	if isTransfer {

@@ -23,7 +23,7 @@ func Init(psqlInfo string) {
 }
 
 // brc20_ticker_info
-func SaveDataToDBTickerInfoMap(height int,
+func SaveDataToDBTickerInfoMap(height uint32,
 	inscriptionsTickerInfoMap map[string]*model.BRC20TokenInfo,
 ) {
 	stmtTickerInfo, err := SwapDB.Prepare(`
@@ -34,6 +34,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 	for _, info := range inscriptionsTickerInfoMap {
+		if info.UpdateHeight != height {
+			continue
+		}
 		// save ticker info
 		res, err := stmtTickerInfo.Exec(height, info.Ticker,
 			info.Deploy.Max.String(),
@@ -52,7 +55,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 	}
 }
 
-func SaveDataToDBTickerBalanceMap(height int,
+func SaveDataToDBTickerBalanceMap(height uint32,
 	tokenUsersBalanceData map[string]map[string]*model.BRC20TokenBalance,
 ) {
 	stmtUserBalance, err := SwapDB.Prepare(`
@@ -66,6 +69,10 @@ VALUES ($1, $2, $3, $4, $5)
 	for ticker, holdersMap := range tokenUsersBalanceData {
 		// holders
 		for _, balanceData := range holdersMap {
+			if balanceData.UpdateHeight != height {
+				continue
+			}
+
 			// save balance db
 			res, err := stmtUserBalance.Exec(height, ticker,
 				balanceData.PkScript,
@@ -83,8 +90,8 @@ VALUES ($1, $2, $3, $4, $5)
 	}
 }
 
-func SaveDataToDBTickerHistoryMap(height int,
-	inscriptionsTickerInfoMap map[string]*model.BRC20TokenInfo,
+func SaveDataToDBTickerHistoryMap(height uint32,
+	allHistory []*model.BRC20History,
 ) {
 	stmtBRC20History, err := SwapDB.Prepare(`
 INSERT INTO brc20_history(block_height, tick,
@@ -111,45 +118,39 @@ INSERT INTO brc20_history(block_height, tick,
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for _, info := range inscriptionsTickerInfoMap {
-		nValid := 0
-		for _, h := range info.History {
-			if h.Valid {
-				nValid++
-			}
+	for _, h := range allHistory {
+		if h.Height != height {
+			continue
 		}
 
-		// history
-		for _, h := range info.History {
-			if !h.Valid {
-				continue
+		if !h.Valid {
+			continue
+		}
+
+		{
+			res, err := stmtBRC20History.Exec(height, h.Tick,
+				h.Type, h.Valid,
+				h.TxId, h.Idx, h.Vout, h.Satoshi, h.Offset,
+				h.PkScriptFrom, h.PkScriptTo,
+				h.Fee,
+				h.TxIdx, h.BlockTime,
+				h.Inscription.InscriptionNumber, h.Inscription.InscriptionId,
+				[]byte("{}"), // content
+				h.Amount, h.AvailableBalance, h.TransferableBalance,
+			)
+			if err != nil {
+				log.Panic("PG Statements Exec Wrong: ", err)
 			}
 
-			{
-				res, err := stmtBRC20History.Exec(height, info.Ticker,
-					h.Type, h.Valid,
-					h.TxId, h.Idx, h.Vout, h.Satoshi, h.Offset,
-					h.PkScriptFrom, h.PkScriptTo,
-					h.Fee,
-					h.TxIdx, h.BlockTime,
-					h.Inscription.InscriptionNumber, h.Inscription.InscriptionId,
-					[]byte("{}"), // content
-					h.Amount, h.AvailableBalance, h.TransferableBalance,
-				)
-				if err != nil {
-					log.Panic("PG Statements Exec Wrong: ", err)
-				}
-
-				if _, err := res.RowsAffected(); err != nil {
-					log.Panic("PG Affecte Wrong: ", err)
-				}
+			if _, err := res.RowsAffected(); err != nil {
+				log.Panic("PG Affecte Wrong: ", err)
 			}
 		}
 	}
 }
 
-func SaveDataToDBTransferStateMap(height int,
-	inscriptionsTransferRemoveMap map[string]struct{},
+func SaveDataToDBTransferStateMap(height uint32,
+	inscriptionsTransferRemoveMap map[string]uint32,
 ) {
 	stmtTransferState, err := SwapDB.Prepare(`
 INSERT INTO brc20_transfer_state(block_height, create_key, moved)
@@ -159,7 +160,11 @@ VALUES ($1, $2, $3)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for createKey := range inscriptionsTransferRemoveMap {
+	for createKey, removeHeight := range inscriptionsTransferRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtTransferState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -171,7 +176,7 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBValidTransferMap(height int,
+func SaveDataToDBValidTransferMap(height uint32,
 	inscriptionsValidTransferMap map[string]*model.InscriptionBRC20TickInfo,
 ) {
 	stmtValidTransfer, err := SwapDB.Prepare(`
@@ -184,6 +189,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	}
 
 	for create_key, transferInfo := range inscriptionsValidTransferMap {
+		if transferInfo.Height != height {
+			continue
+		}
+
 		res, err := stmtValidTransfer.Exec(height,
 			create_key,
 			transferInfo.Tick,
@@ -203,7 +212,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 
 }
 
-func SaveDataToDBModuleInfoMap(height int,
+func SaveDataToDBModuleInfoMap(height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
 	stmtSwapInfo, err := SwapDB.Prepare(`
@@ -243,7 +252,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	}
 }
 
-func SaveDataToDBModuleHistoryMap(height int,
+func SaveDataToDBModuleHistoryMap(height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
 	stmtSwapHistory, err := SwapDB.Prepare(`
@@ -306,8 +315,8 @@ INSERT INTO brc20_swap_history(block_height, module_id,
 }
 
 // approve
-func SaveDataToDBSwapApproveStateMap(height int,
-	inscriptionsApproveRemoveMap map[string]struct{},
+func SaveDataToDBSwapApproveStateMap(height uint32,
+	inscriptionsApproveRemoveMap map[string]uint32,
 ) {
 	stmtApproveState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_approve_state(block_height, create_key, moved)
@@ -316,7 +325,11 @@ VALUES ($1, $2, $3)
 	if err != nil {
 		log.Panic("PG Statements Wrong: ", err)
 	}
-	for createKey := range inscriptionsApproveRemoveMap {
+	for createKey, removeHeight := range inscriptionsApproveRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtApproveState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -328,7 +341,7 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapApproveMap(height int,
+func SaveDataToDBSwapApproveMap(height uint32,
 	inscriptionsValidApproveMap map[string]*model.InscriptionBRC20SwapInfo,
 ) {
 	stmtValidApprove, err := SwapDB.Prepare(`
@@ -360,8 +373,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 }
 
 // cond approve
-func SaveDataToDBSwapCondApproveStateMap(height int,
-	inscriptionsCondApproveRemoveMap map[string]struct{},
+func SaveDataToDBSwapCondApproveStateMap(height uint32,
+	inscriptionsCondApproveRemoveMap map[string]uint32,
 ) {
 	stmtCondApproveState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_cond_approve_state(block_height, create_key, moved)
@@ -370,7 +383,11 @@ VALUES ($1, $2, $3)
 	if err != nil {
 		log.Panic("PG Statements Wrong: ", err)
 	}
-	for createKey := range inscriptionsCondApproveRemoveMap {
+	for createKey, removeHeight := range inscriptionsCondApproveRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtCondApproveState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -382,7 +399,7 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapCondApproveMap(height int,
+func SaveDataToDBSwapCondApproveMap(height uint32,
 	inscriptionsValidConditionalApproveMap map[string]*model.InscriptionBRC20SwapConditionalApproveInfo,
 ) {
 	stmtValidCondApprove, err := SwapDB.Prepare(`
@@ -414,8 +431,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 }
 
 // withdraw
-func SaveDataToDBSwapWithdrawStateMap(height int,
-	inscriptionsWithdrawRemoveMap map[string]struct{},
+func SaveDataToDBSwapWithdrawStateMap(height uint32,
+	inscriptionsWithdrawRemoveMap map[string]uint32,
 ) {
 	stmtWithdrawState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_withdraw_state(block_height, create_key, moved)
@@ -425,7 +442,11 @@ VALUES ($1, $2, $3)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for createKey := range inscriptionsWithdrawRemoveMap {
+	for createKey, removeHeight := range inscriptionsWithdrawRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtWithdrawState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -437,7 +458,7 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapWithdrawMap(height int,
+func SaveDataToDBSwapWithdrawMap(height uint32,
 	inscriptionsValidWithdrawMap map[string]*model.InscriptionBRC20SwapInfo,
 ) {
 	stmtValidWithdraw, err := SwapDB.Prepare(`
@@ -471,8 +492,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 }
 
 // commit
-func SaveDataToDBSwapCommitStateMap(height int,
-	inscriptionsCommitRemoveMap map[string]struct{},
+func SaveDataToDBSwapCommitStateMap(height uint32,
+	inscriptionsCommitRemoveMap map[string]uint32,
 ) {
 	stmtCommitState, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_commit_state(block_height, create_key, moved)
@@ -481,7 +502,11 @@ VALUES ($1, $2, $3)
 	if err != nil {
 		log.Panic("PG Statements Wrong: ", err)
 	}
-	for createKey := range inscriptionsCommitRemoveMap {
+	for createKey, removeHeight := range inscriptionsCommitRemoveMap {
+		if removeHeight != height {
+			continue
+		}
+
 		res, err := stmtCommitState.Exec(height, createKey, true)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
@@ -493,7 +518,7 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapCommitMap(height int,
+func SaveDataToDBSwapCommitMap(height uint32,
 	inscriptionsValidCommitMap map[string]*model.InscriptionBRC20Data,
 ) {
 	stmtValidCommit, err := SwapDB.Prepare(`
@@ -519,7 +544,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	}
 }
 
-func SaveDataToDBModuleCommitChainMap(height int,
+func SaveDataToDBModuleCommitChainMap(height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 	stmtSwapCommitChain, err := SwapDB.Prepare(`
 INSERT INTO brc20_swap_commit_chain(block_height, module_id, commit_id, valid, connected)
@@ -573,7 +598,7 @@ VALUES ($1, $2, $3, $4, $5)
 	}
 }
 
-func SaveDataToDBModuleUserBalanceMap(height int,
+func SaveDataToDBModuleUserBalanceMap(height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
 	stmtUserBalance, err := SwapDB.Prepare(`
@@ -609,7 +634,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	}
 }
 
-func SaveDataToDBModulePoolLpBalanceMap(height int,
+func SaveDataToDBModulePoolLpBalanceMap(height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
 	stmtPoolBalance, err := SwapDB.Prepare(`
@@ -643,7 +668,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	}
 }
 
-func SaveDataToDBModuleUserLpBalanceMap(height int,
+func SaveDataToDBModuleUserLpBalanceMap(height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
 	stmtLpBalance, err := SwapDB.Prepare(`

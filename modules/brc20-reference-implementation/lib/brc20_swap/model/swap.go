@@ -603,6 +603,8 @@ func (moduleInfo *BRC20ModuleSwapInfo) GenerateApproveEventsByApprove(owner stri
 
 // state of address for each tick, (balance and history)
 type BRC20ModuleTokenBalance struct {
+	UpdateHeight uint32
+
 	Tick     string
 	PkScript string
 
