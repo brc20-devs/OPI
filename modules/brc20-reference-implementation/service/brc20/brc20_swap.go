@@ -19,21 +19,20 @@ var (
 )
 
 // ProcessUpdateLatestBRC20SwapInit
-func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
+func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	brc20DatasLoad := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 	brc20DatasDump := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 	brc20DatasParse := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 
 	inputFileName := "./data/log_file.txt"
 	log.Printf("loading data...")
-	totalDataCount, err := brc20swapLoader.GetBRC20InputDataLineCount(inputFileName)
-	if err != nil {
+	if _, err := brc20swapLoader.GetBRC20InputDataLineCount(inputFileName); err != nil {
 		log.Printf("invalid input, %s", err)
 		return
 	}
 
 	go func(endHeight int) {
-		if err := brc20swapLoader.LoadBRC20InputDataFromOrdLog(inputFileName, brc20DatasLoad, endHeight); err != nil {
+		if err := brc20swapLoader.LoadBRC20InputDataFromOrdLog(inputFileName, brc20DatasLoad, startHeight, endHeight); err != nil {
 			log.Printf("invalid input, %s", err)
 		}
 		close(brc20DatasLoad)
@@ -44,6 +43,10 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 			brc20DatasParse <- data
 			brc20DatasDump <- data
 		}
+
+		// finish
+		brc20DatasParse <- &brc20swapModel.InscriptionBRC20Data{}
+
 		close(brc20DatasParse)
 		close(brc20DatasDump)
 	}()
@@ -52,16 +55,35 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 		brc20swapLoader.DumpBRC20InputData("./data/brc20.input.txt", brc20DatasDump, true)
 	}()
 
-	g := &brc20swapIndexer.BRC20ModuleIndexer{}
-	g.ProcessUpdateLatestBRC20Init(brc20DatasParse, totalDataCount)
-
-	model.GSwap = g
-
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
 
-	log.Printf("saving database...")
-	g.SaveDataToDB(psqlInfo, endHeight)
-	log.Printf("save database ok")
+	g := &brc20swapIndexer.BRC20ModuleIndexer{}
+	g.Init()
+
+	log.Printf("loading database...")
+	g.LoadDataFromDB(psqlInfo, startHeight)
+	log.Printf("load database ok")
+
+	brc20DatasPerHeight := []*brc20swapModel.InscriptionBRC20Data{}
+	lastHeight := uint32(startHeight)
+	for data := range brc20DatasParse {
+		if len(brc20DatasPerHeight) > 0 && lastHeight != data.Height {
+			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeight, len(brc20DatasPerHeight))
+			if g.Durty {
+				log.Printf("height: %d, saving database...", lastHeight)
+				g.SaveDataToDB(psqlInfo, lastHeight)
+				log.Printf("save database ok")
+
+				g.PurgeHistoricalData()
+			}
+
+			brc20DatasPerHeight = []*brc20swapModel.InscriptionBRC20Data{}
+		}
+		lastHeight = data.Height
+		brc20DatasPerHeight = append(brc20DatasPerHeight, data)
+	}
+
+	model.GSwap = g
 
 	log.Printf("dumping output...")
 	brc20swapLoader.DumpTickerInfoMap("./data/brc20.output.txt",
@@ -75,3 +97,5 @@ func ProcessUpdateLatestBRC20SwapInit(endHeight int) {
 	)
 	log.Printf("dump output ok")
 }
+
+// SELECT relname, n_live_tup AS row_count FROM pg_stat_user_tables ORDER BY relname DESC;

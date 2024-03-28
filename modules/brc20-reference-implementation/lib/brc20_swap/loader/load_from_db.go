@@ -46,7 +46,7 @@ func buildSQLWhereInStr(colValsPair [][]string, startIndex ...int) (conds []stri
 func LoadFromDbTickerInfoMap() (map[string]*model.BRC20TokenInfo, error) {
 	rows, err := SwapDB.Query(`
 SELECT t1.block_height, t1.tick, t1.max_supply, t1.decimals, t1.limit_per_mint, t1.remaining_supply, t1.pkscript_deployer
-FROM brc20_ticker_info t1 
+FROM brc20_ticker_info t1
 INNER JOIN (
 	SELECT MAX(block_height) as block_height, tick FROM brc20_ticker_info GROUP BY tick
 ) t2 ON t1.block_height = t2.block_height AND t1.tick = t2.tick;
@@ -169,12 +169,12 @@ func UserTokensBalanceMap2TokenUsersBalanceMap(userTokensMap map[string]map[stri
 	return tokenUsersMap
 }
 
-func LoadFromDBTransferStateMap() (res map[string]struct{}, err error) {
+func LoadFromDBTransferStateMap() (res map[string]uint32, err error) {
 	rows, err := SwapDB.Query(`
-SELECT t1.block_height, t1.create_key FROM brc20_transfer_state  t1 
+SELECT t1.block_height, t1.create_key FROM brc20_transfer_state  t1
 INNER JOIN (
-	SELECT MAX(block_height) as block_height, create_key 
-	FROM brc20_transfer_state 
+	SELECT MAX(block_height) as block_height, create_key
+	FROM brc20_transfer_state
 	WHERE moved = true
 	GROUP BY create_key
 ) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key
@@ -185,14 +185,14 @@ INNER JOIN (
 	defer rows.Close()
 
 	var (
-		height     int
+		height     uint32
 		create_key string
 	)
 	for rows.Next() {
 		if err := rows.Scan(&height, &create_key); err != nil {
 			return nil, err
 		}
-		res[create_key] = struct{}{}
+		res[create_key] = height
 	}
 
 	return res, nil
@@ -200,8 +200,8 @@ INNER JOIN (
 
 func LoadFromDBValidTransferMap() (res map[string]*model.InscriptionBRC20TickInfo, err error) {
 	rows, err := SwapDB.Query(`
-SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount, 
-	   t1.inscription_number, t1.inscription_id, 
+SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount,
+	   t1.inscription_number, t1.inscription_id,
 	   t1.txid, t1.vout, t1.output_value, t1.output_offset
 FROM brc20_valid_transfer t1
 INNER JOIN (
@@ -280,8 +280,8 @@ FROM brc20_swap_info
 
 func LoadFromDBModuleHistoryMap(moduleId string) (map[string][]*model.BRC20ModuleHistory, error) {
 	query := `
-SELECT module_id, history_type, valid, txid, idx, vout, 
-	output_value, output_offset, pkscript_from, pkscript_to, fee, txidx, block_time, 
+SELECT module_id, history_type, valid, txid, idx, vout,
+	output_value, output_offset, pkscript_from, pkscript_to, fee, txidx, block_time,
 	inscription_number, inscription_id, inscription_content
 FROM brc20_swap_history WHERE module_id = $1
 `
@@ -358,12 +358,12 @@ func LoadFromDBModuleUserBalanceMap(moduleId string, ticks []string, pkscripts [
 	})
 
 	query := fmt.Sprintf(`
-SELECT t1.module_id, t1.tick, t1.pkscript, t1.swap_balance, t1.available_balance, 
+SELECT t1.module_id, t1.tick, t1.pkscript, t1.swap_balance, t1.available_balance,
 	t1.approveable_balance, t1.cond_approveable_balance, t1.withdrawable_balance
 FROM brc20_swap_user_balance t1
 INNER JOIN (
-	SELECT MAX(block_height) as block_height, tick, pkscript 
-	FROM brc20_swap_user_balance 
+	SELECT MAX(block_height) as block_height, tick, pkscript
+	FROM brc20_swap_user_balance
 	WHERE %s
 	GROUP BY tick, pkscript
 ) t2 ON t1.block_height = t2.block_height AND t1.tick = t2.tick AND t1.pkscript = t2.pkscript
@@ -414,7 +414,7 @@ INNER JOIN (
 	FROM brc20_swap_pool_balance
 	WHERE module_id = $1 %s
 	GROUP BY module_id, tick0, tick1
-) t2 ON t1.block_height = t2.block_height AND t1.module_id = t2.module_id 
+) t2 ON t1.block_height = t2.block_height AND t1.module_id = t2.module_id
 	AND t1.tick0 = t2.tick0 AND t1.tick1 = t2.tick1
 `, tickInCondSql)
 	args := append([]any{moduleId}, inArgs...)
@@ -458,7 +458,7 @@ SELECT t1.module_id, t1.pool, t1.pkscript, t1.lp_balance
 FROM brc20_swap_user_lp_balance t1
 INNER JOIN (
 	SELECT MAX(block_height) as block_height, module_id, pool, pkscript
-	FROM brc20_swap_user_lp_balance 
+	FROM brc20_swap_user_lp_balance
 	WHERE %s
 	GROUP BY module_id, pool, pkscript
 ) t2 ON t1.block_height = t2.block_height AND t1.module_id = t2.module_id AND t1.pool = t2.pool AND t1.pkscript = t2.pkscript
@@ -488,7 +488,7 @@ INNER JOIN (
 	return result, nil
 }
 
-func LoadFromDBSwapApproveStateMap(createKeys []string) (map[string]struct{}, error) {
+func LoadFromDBSwapApproveStateMap(createKeys []string) (map[string]uint32, error) {
 	inConds, inArgs := buildSQLWhereInStr([][]string{append(createKeys, "create_key")})
 	condSql := ""
 	if len(inConds) > 0 {
@@ -498,10 +498,10 @@ func LoadFromDBSwapApproveStateMap(createKeys []string) (map[string]struct{}, er
 	}
 
 	query := fmt.Sprintf(`
-SELECT t1.block_height, t1.create_key 
+SELECT t1.block_height, t1.create_key
 FROM brc20_swap_approve_state t1
 INNER JOIN (
-	SELECT MAX(block_height) as block_height, create_key 
+	SELECT MAX(block_height) as block_height, create_key
 	FROM brc20_swap_approve_state %s
 	GROUP BY create_key
 ) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key
@@ -513,15 +513,15 @@ INNER JOIN (
 	}
 	defer rows.Close()
 
-	result := make(map[string]struct{})
+	result := make(map[string]uint32)
 	for rows.Next() {
 		var createKey string
-		var height int
+		var height uint32
 		err := rows.Scan(&height, &createKey)
 		if err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
-		result[createKey] = struct{}{}
+		result[createKey] = height
 	}
 
 	return result, nil
@@ -536,11 +536,11 @@ func LoadFromDBSwapApproveMap(createKeys []string) (map[string]*model.Inscriptio
 
 	query := fmt.Sprintf(`
 SELECT t1.block_height, t1.create_key, t1.module_id, t1.tick, t1.pkscript, t1.amount,
-	t1.inscription_number, t1.inscription_id, 
-	t1.txid, t1.vout, t1.output_value, t1.output_offset 
+	t1.inscription_number, t1.inscription_id,
+	t1.txid, t1.vout, t1.output_value, t1.output_offset
 FROM brc20_swap_valid_approve t1
 INNER JOIN (
-	SELECT MAX(block_height) as block_height, create_key 
+	SELECT MAX(block_height) as block_height, create_key
 	FROM brc20_swap_valid_approve %s
 	GROUP BY create_key
 ) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key
@@ -574,7 +574,7 @@ INNER JOIN (
 	return result, nil
 }
 
-func LoadFromDBSwapCondApproveStateMap(createKeys []string) (map[string]struct{}, error) {
+func LoadFromDBSwapCondApproveStateMap(createKeys []string) (map[string]uint32, error) {
 	inConds, inArgs := buildSQLWhereInStr([][]string{append(createKeys, "create_key")})
 	inCondSql := ""
 	if len(inConds) > 0 {
@@ -585,7 +585,7 @@ func LoadFromDBSwapCondApproveStateMap(createKeys []string) (map[string]struct{}
 SELECT t1.create_key, t1.moved
 FROM brc20_swap_cond_approve_state t1
 INNER JOIN (
-	SELECT MAX(block_height) as block_height, create_key 
+	SELECT MAX(block_height) as block_height, create_key
 	FROM brc20_swap_cond_approve_state
 	WHERE moved = true %s
 	GROUP BY create_key
@@ -598,15 +598,16 @@ INNER JOIN (
 	}
 	defer rows.Close()
 
-	result := make(map[string]struct{})
+	result := make(map[string]uint32)
 	for rows.Next() {
 		var createKey string
+		var height uint32 // fixme
 		var moved bool
 		err := rows.Scan(&createKey, &moved)
 		if err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
-		result[createKey] = struct{}{}
+		result[createKey] = height
 	}
 
 	return result, nil
@@ -621,11 +622,11 @@ func LoadFromDBSwapCondApproveMap(createKeys []string) (map[string]*model.Inscri
 
 	query := fmt.Sprintf(`
 SELECT t1.block_height, create_key, t1.module_id, t1.tick, t1.pkscript, t1.amount,
-	t1.inscription_number, t1.inscription_id, 
-	t1.txid, t1.vout, t1.output_value, t1.output_offset 
+	t1.inscription_number, t1.inscription_id,
+	t1.txid, t1.vout, t1.output_value, t1.output_offset
 FROM brc20_swap_valid_cond_approve t1
 INNER JOIN (
-	SELECT MAX(block_height) as block_height, inscription_id 
+	SELECT MAX(block_height) as block_height, inscription_id
 	FROM brc20_swap_valid_cond_approve %s
 	GROUP BY inscription_id
 ) t2 ON t1.block_height = t2.block_height AND t1.inscription_id = t2.inscription_id
@@ -658,7 +659,7 @@ INNER JOIN (
 	return result, nil
 }
 
-func LoadFromDBSwapCommitStateMap(createKeys []string) (map[string]struct{}, error) {
+func LoadFromDBSwapCommitStateMap(createKeys []string) (map[string]uint32, error) {
 	whereCond := "WHERE moved = true"
 	args := []any{}
 	if createKeys == nil {
@@ -681,14 +682,15 @@ INNER JOIN (
 	}
 	defer rows.Close()
 
-	result := make(map[string]struct{})
+	result := make(map[string]uint32)
 	for rows.Next() {
 		var createKey string
+		var height uint32 // fixme: not set
 		var moved bool
 		if err := rows.Scan(&createKey, &moved); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
-		result[createKey] = struct{}{}
+		result[createKey] = height
 	}
 
 	return result, nil
@@ -703,12 +705,12 @@ func LoadFromDBSwapCommitMap(createKeys []string) (map[string]*model.Inscription
 	}
 
 	query := fmt.Sprintf(`
-SELECT vc.block_height, vc.module_id, vc.create_key, vc.pkscript, 
-	vc.inscription_number, vc.inscription_id, 
-    vc.txid, vc.vout, vc.output_value, vc.output_offset, vc.inscription_content 
+SELECT vc.block_height, vc.module_id, vc.create_key, vc.pkscript,
+	vc.inscription_number, vc.inscription_id,
+    vc.txid, vc.vout, vc.output_value, vc.output_offset, vc.inscription_content
 FROM brc20_swap_valid_commit vc
 INNER JOIN (
-	SELECT create_key, MAX(block_height) AS max_height 
+	SELECT create_key, MAX(block_height) AS max_height
 	FROM brc20_swap_valid_commit %s GROUP BY create_key
 ) sub ON vc.create_key = sub.create_key AND vc.block_height = sub.max_height
 `, whereCond)
@@ -734,7 +736,7 @@ INNER JOIN (
 	return result, nil
 }
 
-func LoadFromDBSwapWithdrawStateMap(createKeys []string) (map[string]struct{}, error) {
+func LoadFromDBSwapWithdrawStateMap(createKeys []string) (map[string]uint32, error) {
 	whereCond := ""
 	args := []any{}
 	if len(createKeys) > 0 {
@@ -757,14 +759,15 @@ INNER JOIN (
 	}
 	defer rows.Close()
 
-	result := make(map[string]struct{})
+	result := make(map[string]uint32)
 	for rows.Next() {
 		var createKey string
+		var height uint32 // fixme
 		var moved bool
 		if err := rows.Scan(&createKey, &moved); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
-		result[createKey] = struct{}{}
+		result[createKey] = height
 	}
 
 	return result, nil
@@ -779,10 +782,10 @@ func LoadFromDBSwapWithdrawMap(createKeys []string) (map[string]*model.Inscripti
 	}
 
 	query := fmt.Sprintf(`
-SELECT vw.block_height, vw.create_key, vw.module_id, 
+SELECT vw.block_height, vw.create_key, vw.module_id,
 	vw.tick, vw.pkscript, vw.amount,
-    vw.inscription_number, vw.inscription_id, 
-	vw.txid, vw.vout, vw.output_value, vw.output_offset 
+    vw.inscription_number, vw.inscription_id,
+	vw.txid, vw.vout, vw.output_value, vw.output_offset
 FROM brc20_swap_valid_withdraw vw
 INNER JOIN (
 	SELECT create_key, MAX(block_height) AS max_height
