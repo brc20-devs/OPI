@@ -3,6 +3,8 @@ var express = require('express');
 const { Pool } = require('pg')
 var cors = require('cors')
 const crypto = require('crypto');
+const rateLimit = require('express-rate-limit');
+const { pkscript_from_address } = require("./utils");
 
 // for self-signed cert of postgres
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -24,6 +26,10 @@ var use_extra_tables = process.env.USE_EXTRA_TABLES == 'true' ? true : false
 const api_port = parseInt(process.env.API_PORT || "8000")
 const api_host = process.env.API_HOST || '127.0.0.1'
 
+const rate_limit_enabled = process.env.RATE_LIMIT_ENABLE || 'false'
+const rate_limit_window_ms = process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000
+const rate_limit_max = process.env.RATE_LIMIT_MAX || 100
+
 var app = express();
 app.set('trust proxy', parseInt(process.env.API_TRUSTED_PROXY_CNT || "0"))
 
@@ -32,6 +38,17 @@ var corsOptions = {
   optionsSuccessStatus: 200 // some legacy browsers (IE11, various SmartTVs) choke on 204
 }
 app.use([cors(corsOptions)])
+
+if (rate_limit_enabled === 'true') {
+  const limiter = rateLimit({
+    windowMs: rate_limit_window_ms,
+    max: rate_limit_max,
+    standardHeaders: true,
+    legacyHeaders: false,
+  })
+  // Apply the delay middleware to all requests.
+  app.use(limiter);
+}
 
 app.get('/v1/brc20/ip', (request, response) => response.send(request.ip))
 
@@ -430,6 +447,128 @@ app.get('/v1/brc20/get_hash_of_all_current_balances', async (request, response) 
   } catch (err) {
     console.log(err)
     response.status(500).send({ error: 'internal error', result: null })
+  }
+});
+
+// get all events with a specific inscription id
+app.get('/v1/brc20/event', async (request, response) => {
+  try {
+    console.log(`${request.protocol}://${request.get('host')}${request.originalUrl}`)
+
+    let res1 = await query_db('select event_type_name, event_type_id from brc20_event_types;')
+    let event_type_id_to_name = {}
+    res1.rows.forEach((row) => {
+      event_type_id_to_name[row.event_type_id] = row.event_type_name
+    })
+
+    let inscription_id = request.query.inscription_id;
+    if(!inscription_id) {
+      response.status(400).send({ error: 'inscription_id is required', result: null })
+      return
+    }
+
+    let query =  `select event, event_type, inscription_id block_height
+                  from brc20_events
+                  where inscription_id = $1
+                  order by id asc;`
+    let res = await query_db(query, [inscription_id])
+    let result = []
+    for (const row of res.rows) {
+      let event = row.event
+      let event_type = event_type_id_to_name[row.event_type]
+      let inscription_id = row.inscription_id
+      event.event_type = event_type
+      event.inscription_id = inscription_id
+      result.push(event)
+    }
+    response.send({ error: null, result: result })
+  } catch (err) {
+    console.log(err)
+    response.status(500).send({ error: 'internal error', result: null })
+  }
+});
+
+app.get('/v1/brc20_swap/get_current_balance_of_wallet', async (request, response) => {
+  try {
+    console.log(`${request.protocol}://${request.get('host')}${request.originalUrl}`)
+
+    let { address, pkscript, ticker, module_id } = request.query
+    if (!pkscript) {
+      pkscript = pkscript_from_address(address)
+    }
+    let tick = ticker.toLowerCase()
+    let current_block_height = await get_block_height_of_db()
+    let balance = null
+    let query = ` select swap_balance, available_balance, approveable_balance, 
+                  cond_approveable_balance, withdrawable_balance 
+                  from brc20_swap_user_balance where pkscript = $1 and tick = $2 and module_id = $3
+                  order by id
+                  limit 1;`
+    let params = [pkscript, tick, module_id]
+
+    let res = await query_db(query, params)
+    if (res.rows.length == 0) {
+      response.status(400).send({ error: 'no balance found', result: null })
+      return
+    }
+    balance = res.rows[0]
+
+    balance.block_height = current_block_height
+    response.send({ error: null, result: balance })
+  } catch (err) {
+    console.log(err)
+    response.status(500).send({ error: 'internal error', result: null })
+  }
+})
+
+let history_type_id_to_name;
+app.get('/v1/brc20_swap/history', async (request, response) => {
+  try {
+    console.log(`${request.protocol}://${request.get('host')}${request.originalUrl}`);
+    let { module_id, start_height, end_height, cursor, size } = request.query;
+    start_height = parseInt(start_height);
+    end_height = parseInt(end_height);
+    cursor = parseInt(cursor);
+    size = parseInt(size);
+
+    if (!history_type_id_to_name) {
+      history_type_id_to_name = {}
+      let res0 = await query_db('select history_type_name, history_type_id from brc20_history_types;');
+
+      res0.rows.forEach((row) => {
+        history_type_id_to_name[row.history_type_id] = row.history_type_name;
+      });
+    }
+
+    let query = `select *
+    from brc20_swap_history
+    where module_id = $1 and block_height between $2 and $3
+    order by id
+    limit $4 offset $5;
+    `;
+    let res1 = await query_db(query, [module_id, start_height, end_height, size, cursor]);
+    if (res1.rows.length == 0) {
+      response.status(400).send({ error: 'no history found', result: null });
+      return;
+    }
+    res1.rows.forEach((row) => {
+      row.history_type = history_type_id_to_name[row.history_type];
+    });
+
+    let query_count = `select count(*)
+    from brc20_swap_history
+    where module_id = $1 and block_height between $2 and $3
+    `
+    let res2 = await query_db(query_count, [module_id, start_height, end_height]);
+    let result = {
+      total: parseInt(res2.rows[0].count),
+      list: res1.rows
+    }
+    
+    response.send({ error: null, result});
+  } catch (err) {
+    console.log(err);
+    response.status(500).send({ error: 'internal error', result: null });
   }
 });
 

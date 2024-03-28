@@ -11,19 +11,7 @@ import (
 
 var SwapDB *sql.DB
 
-const (
-	pg_host     = "10.16.11.95"
-	pg_port     = 5432
-	pg_user     = "postgres"
-	pg_password = "postgres"
-	pg_dbname   = "postgres"
-)
-
 func Init(psqlInfo string) {
-	if psqlInfo == "" {
-		psqlInfo = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", pg_host, pg_port, pg_user, pg_password, pg_dbname)
-	}
-
 	var err error
 	SwapDB, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
@@ -57,11 +45,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -88,11 +75,10 @@ VALUES ($1, $2, $3, $4, $5)
 			if err != nil {
 				log.Panic("PG Statements Exec Wrong: ", err)
 			}
-			id, err := res.RowsAffected()
-			if err != nil {
+
+			if _, err := res.RowsAffected(); err != nil {
 				log.Panic("PG Affecte Wrong: ", err)
 			}
-			fmt.Println(id)
 		}
 	}
 }
@@ -147,17 +133,16 @@ INSERT INTO brc20_history(block_height, tick,
 					h.Fee,
 					h.TxIdx, h.BlockTime,
 					h.Inscription.InscriptionNumber, h.Inscription.InscriptionId,
-					"", // content
+					[]byte("{}"), // content
 					h.Amount, h.AvailableBalance, h.TransferableBalance,
 				)
 				if err != nil {
 					log.Panic("PG Statements Exec Wrong: ", err)
 				}
-				id, err := res.RowsAffected()
-				if err != nil {
+
+				if _, err := res.RowsAffected(); err != nil {
 					log.Panic("PG Affecte Wrong: ", err)
 				}
-				fmt.Println(id)
 			}
 		}
 	}
@@ -179,11 +164,10 @@ VALUES ($1, $2, $3)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -211,11 +195,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 
 }
@@ -253,11 +236,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -307,16 +289,15 @@ INSERT INTO brc20_swap_history(block_height, module_id,
 					h.Fee,
 					h.TxIdx, h.BlockTime,
 					h.Inscription.InscriptionNumber, h.Inscription.InscriptionId,
-					"", // content
+					[]byte("{}"), // content
 				)
 				if err != nil {
 					log.Panic("PG Statements Exec Wrong: ", err)
 				}
-				id, err := res.RowsAffected()
-				if err != nil {
+				if _, err := res.RowsAffected(); err != nil {
 					log.Panic("PG Affecte Wrong: ", err)
 				}
-				fmt.Println(id)
+
 			}
 
 		}
@@ -340,11 +321,10 @@ VALUES ($1, $2, $3)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -372,11 +352,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -396,11 +375,10 @@ VALUES ($1, $2, $3)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -428,11 +406,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -453,11 +430,10 @@ VALUES ($1, $2, $3)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -486,11 +462,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 
 }
@@ -511,11 +486,10 @@ VALUES ($1, $2, $3)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -538,11 +512,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
-		id, err := res.RowsAffected()
-		if err != nil {
+
+		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-		fmt.Println(id)
 	}
 }
 
@@ -592,11 +565,10 @@ VALUES ($1, $2, $3, $4, $5)
 			if err != nil {
 				log.Panic("PG Statements Exec Wrong: ", err)
 			}
-			id, err := res.RowsAffected()
-			if err != nil {
+			if _, err := res.RowsAffected(); err != nil {
 				log.Panic("PG Affecte Wrong: ", err)
 			}
-			fmt.Println(id)
+
 		}
 	}
 }
@@ -629,11 +601,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				if err != nil {
 					log.Panic("PG Statements Exec Wrong: ", err)
 				}
-				id, err := res.RowsAffected()
-				if err != nil {
+				if _, err := res.RowsAffected(); err != nil {
 					log.Panic("PG Affecte Wrong: ", err)
 				}
-				fmt.Println(id)
 			}
 		}
 	}
@@ -665,11 +635,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 			if err != nil {
 				log.Panic("PG Statements Exec Wrong: ", err)
 			}
-			id, err := res.RowsAffected()
-			if err != nil {
+			if _, err := res.RowsAffected(); err != nil {
 				log.Panic("PG Affecte Wrong: ", err)
 			}
-			fmt.Println(id)
+
 		}
 	}
 }
@@ -696,11 +665,9 @@ VALUES ($1, $2, $3, $4, $5)
 				if err != nil {
 					log.Panic("PG Statements Exec Wrong: ", err)
 				}
-				id, err := res.RowsAffected()
-				if err != nil {
+				if _, err := res.RowsAffected(); err != nil {
 					log.Panic("PG Affecte Wrong: ", err)
 				}
-				fmt.Println(id)
 			}
 		}
 	}
