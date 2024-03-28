@@ -96,4 +96,4 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	log.Printf("dump output ok")
 }
 
-// SELECT refname, n_live_tup AS row_count FROM pg_stat_user_tables ORDER BY refname DESC;
+// SELECT relname, n_live_tup AS row_count FROM pg_stat_user_tables ORDER BY relname DESC;
