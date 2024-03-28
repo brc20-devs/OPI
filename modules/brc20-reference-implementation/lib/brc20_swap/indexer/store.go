@@ -9,7 +9,7 @@ import (
 
 // func (g *BRC20ModuleIndexer) SaveDataToDB(height int) {
 
-func (g *BRC20ModuleIndexer) SaveDataToDB(dbConnInfo string, height int) {
+func (g *BRC20ModuleIndexer) SaveDataToDB(dbConnInfo string, height uint32) {
 	loader.Init(dbConnInfo)
 	defer loader.SwapDB.Close()
 

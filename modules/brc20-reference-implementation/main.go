@@ -1,6 +1,10 @@
 package main
 
 import (
+	"brc20query/controller"
+	_ "brc20query/docs"
+	"brc20query/logger"
+	"brc20query/service/brc20"
 	"context"
 	"net/http"
 	"os"
@@ -19,17 +23,13 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
-
-	"brc20query/controller"
-	_ "brc20query/docs"
-	"brc20query/logger"
-	"brc20query/service/brc20"
 )
 
 var (
-	listen_address     = os.Getenv("LISTEN")
-	basePath           = os.Getenv("BASE_PATH")
-	heightBRC20Process = os.Getenv("BRC20_PROCESS_BEFORE_HEIGHT")
+	listen_address          = os.Getenv("LISTEN")
+	basePath                = os.Getenv("BASE_PATH")
+	startHeightBRC20Process = os.Getenv("BRC20_PROCESS_AFTER_HEIGHT")
+	endHeightBRC20Process   = os.Getenv("BRC20_PROCESS_BEFORE_HEIGHT")
 )
 
 var (
@@ -124,9 +124,11 @@ func main() {
 		brc20API.POST("/brc20-module/verify-commit", controller.BRC20ModuleVerifySwapCommitContent)
 	}
 
+	// brc20 swap
 	go func() {
-		endHeight, _ := strconv.Atoi(heightBRC20Process)
-		brc20.ProcessUpdateLatestBRC20SwapInit(endHeight)
+		endHeight, _ := strconv.Atoi(endHeightBRC20Process)
+		startHeight, _ := strconv.Atoi(startHeightBRC20Process)
+		brc20.ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight)
 		brc20SwapReady = true
 	}()
 

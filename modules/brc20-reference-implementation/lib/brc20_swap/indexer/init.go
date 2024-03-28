@@ -368,6 +368,11 @@ func (copyDup *BRC20ModuleIndexer) cherryPickModuleData(base *BRC20ModuleIndexer
 	log.Printf("cherryPickModuleData finish. total: %d", len(base.ModulesInfoMap))
 }
 
+func (g *BRC20ModuleIndexer) Init() {
+	g.initBRC20()
+	g.initModule()
+}
+
 func (base *BRC20ModuleIndexer) DeepCopy() (copyDup *BRC20ModuleIndexer) {
 	copyDup = &BRC20ModuleIndexer{}
 	copyDup.initBRC20()

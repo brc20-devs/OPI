@@ -26,7 +26,7 @@ func isTextContentType(contenttype []byte) bool {
 }
 
 // LoadBRC20InputDataFromOrdLog log_file.txt
-func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.InscriptionBRC20Data, endHeight int) error {
+func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.InscriptionBRC20Data, startHeight, endHeight int) error {
 	file, err := os.Open(fname)
 	if err != nil {
 		return err
@@ -138,6 +138,9 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			}
 			if int(height) > endHeight {
 				break
+			}
+			if int(height) < startHeight {
+				continue
 			}
 
 			idStr := fields[4]
