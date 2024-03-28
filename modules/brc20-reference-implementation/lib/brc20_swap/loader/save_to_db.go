@@ -91,7 +91,7 @@ VALUES ($1, $2, $3, $4, $5)
 }
 
 func SaveDataToDBTickerHistoryMap(height uint32,
-	inscriptionsTickerInfoMap map[string]*model.BRC20TokenInfo,
+	allHistory []*model.BRC20History,
 ) {
 	stmtBRC20History, err := SwapDB.Prepare(`
 INSERT INTO brc20_history(block_height, tick,
@@ -118,30 +118,32 @@ INSERT INTO brc20_history(block_height, tick,
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for _, info := range inscriptionsTickerInfoMap {
-		for _, h := range info.History {
-			if !h.Valid {
-				continue
+	for _, h := range allHistory {
+		if h.Height != height {
+			continue
+		}
+
+		if !h.Valid {
+			continue
+		}
+
+		{
+			res, err := stmtBRC20History.Exec(height, h.Tick,
+				h.Type, h.Valid,
+				h.TxId, h.Idx, h.Vout, h.Satoshi, h.Offset,
+				h.PkScriptFrom, h.PkScriptTo,
+				h.Fee,
+				h.TxIdx, h.BlockTime,
+				h.Inscription.InscriptionNumber, h.Inscription.InscriptionId,
+				[]byte("{}"), // content
+				h.Amount, h.AvailableBalance, h.TransferableBalance,
+			)
+			if err != nil {
+				log.Panic("PG Statements Exec Wrong: ", err)
 			}
 
-			{
-				res, err := stmtBRC20History.Exec(height, info.Ticker,
-					h.Type, h.Valid,
-					h.TxId, h.Idx, h.Vout, h.Satoshi, h.Offset,
-					h.PkScriptFrom, h.PkScriptTo,
-					h.Fee,
-					h.TxIdx, h.BlockTime,
-					h.Inscription.InscriptionNumber, h.Inscription.InscriptionId,
-					[]byte("{}"), // content
-					h.Amount, h.AvailableBalance, h.TransferableBalance,
-				)
-				if err != nil {
-					log.Panic("PG Statements Exec Wrong: ", err)
-				}
-
-				if _, err := res.RowsAffected(); err != nil {
-					log.Panic("PG Affecte Wrong: ", err)
-				}
+			if _, err := res.RowsAffected(); err != nil {
+				log.Panic("PG Affecte Wrong: ", err)
 			}
 		}
 	}

@@ -16,7 +16,7 @@ func (g *BRC20ModuleIndexer) SaveDataToDB(dbConnInfo string, height uint32) {
 	// ticker info
 	loader.SaveDataToDBTickerInfoMap(height, g.InscriptionsTickerInfoMap)
 	loader.SaveDataToDBTickerBalanceMap(height, g.TokenUsersBalanceData)
-	loader.SaveDataToDBTickerHistoryMap(height, g.InscriptionsTickerInfoMap)
+	loader.SaveDataToDBTickerHistoryMap(height, g.AllHistory)
 
 	loader.SaveDataToDBTransferStateMap(height, g.InscriptionsTransferRemoveMap)
 	loader.SaveDataToDBValidTransferMap(height, g.InscriptionsValidTransferMap)
