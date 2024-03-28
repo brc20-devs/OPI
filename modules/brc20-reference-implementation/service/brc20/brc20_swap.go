@@ -43,6 +43,10 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 			brc20DatasParse <- data
 			brc20DatasDump <- data
 		}
+
+		// finish
+		brc20DatasParse <- &brc20swapModel.InscriptionBRC20Data{}
+
 		close(brc20DatasParse)
 		close(brc20DatasDump)
 	}()
@@ -65,10 +69,11 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	for data := range brc20DatasParse {
 		if len(brc20DatasPerHeight) > 0 && lastHeight != data.Height {
 			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeight, len(brc20DatasPerHeight))
-
-			log.Printf("height: %d, saving database...", lastHeight)
-			g.SaveDataToDB(psqlInfo, lastHeight)
-			log.Printf("save database ok")
+			if g.Durty {
+				log.Printf("height: %d, saving database...", lastHeight)
+				g.SaveDataToDB(psqlInfo, lastHeight)
+				log.Printf("save database ok")
+			}
 
 			brc20DatasPerHeight = []*brc20swapModel.InscriptionBRC20Data{}
 		}

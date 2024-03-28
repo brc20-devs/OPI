@@ -27,6 +27,8 @@ func isJson(contentBody []byte) bool {
 // ProcessUpdateLatestBRC20Loop
 func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.InscriptionBRC20Data, totalDataCount int) {
 	log.Printf("process swap update. total %d", totalDataCount)
+
+	g.Durty = false
 	for idx, data := range brc20Datas {
 		percent := idx * 100 / totalDataCount
 		// is sending transfer
@@ -35,6 +37,8 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 			if condApproveInfo, isInvalid := g.GetConditionalApproveInfoByKey(data.CreateIdxKey); condApproveInfo != nil {
 				if err := g.ProcessConditionalApprove(data, condApproveInfo, isInvalid); err != nil {
 					log.Printf("process conditional approve move failed: %s", err)
+				} else {
+					g.Durty = true
 				}
 				continue
 			}
@@ -48,6 +52,8 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 			if transferInfo, isInvalid := g.GetTransferInfoByKey(data.CreateIdxKey); transferInfo != nil {
 				if err := g.ProcessTransfer(data, transferInfo, isInvalid); err != nil {
 					log.Printf("process transfer move failed: %s", err)
+				} else {
+					g.Durty = true
 				}
 				continue
 			}
@@ -56,6 +62,8 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 			if approveInfo, isInvalid := g.GetApproveInfoByKey(data.CreateIdxKey); approveInfo != nil {
 				if err := g.ProcessApprove(data, approveInfo, isInvalid); err != nil {
 					log.Printf("process approve move failed: %s", err)
+				} else {
+					g.Durty = true
 				}
 				continue
 			}
@@ -64,6 +72,8 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 			if commitFrom, isInvalid := g.GetCommitInfoByKey(data.CreateIdxKey); commitFrom != nil {
 				if err := g.ProcessCommit(commitFrom, data, isInvalid); err != nil {
 					log.Printf("process commit move failed: %s", err)
+				} else {
+					g.Durty = true
 				}
 				continue
 			}
@@ -125,6 +135,8 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 			} else {
 				log.Printf("(%d %%) process failed: %s", percent, err)
 			}
+		} else {
+			g.Durty = true
 		}
 	}
 
@@ -134,6 +146,9 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 				delete(holdersBalanceMap, key)
 			}
 		}
+	}
+	if !g.Durty {
+		return
 	}
 
 	log.Printf("process swap finish. ticker: %d, users: %d, tokens: %d, validInscription: %d, validTransfer: %d, invalidTransfer: %d",
@@ -168,7 +183,6 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 		len(g.InscriptionsValidCommitMap),
 		len(g.InscriptionsInvalidCommitMap),
 	)
-
 }
 
 // ProcessUpdateLatestBRC20Init

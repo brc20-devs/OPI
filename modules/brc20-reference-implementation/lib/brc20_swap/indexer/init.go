@@ -58,6 +58,9 @@ type BRC20ModuleIndexer struct {
 	// for gen approve event
 	ThisTxId                                    string
 	TxStaticTransferStatesForConditionalApprove []*model.TransferStateForConditionalApprove
+
+	// save flag
+	Durty bool
 }
 
 func (g *BRC20ModuleIndexer) GetBRC20HistoryByUser(pkScript string) (userHistory *model.BRC20UserHistory) {
