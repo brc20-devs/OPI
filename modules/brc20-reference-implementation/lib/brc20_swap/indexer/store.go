@@ -9,6 +9,15 @@ import (
 
 // func (g *BRC20ModuleIndexer) SaveDataToDB(height int) {
 
+func (g *BRC20ModuleIndexer) PurgeHistoricalData() {
+	// purge history
+	g.AllHistory = make([]*model.BRC20History, 0)
+	g.InscriptionsTransferRemoveMap = make(map[string]uint32, 0)
+	g.InscriptionsApproveRemoveMap = make(map[string]uint32, 0)
+	g.InscriptionsCondApproveRemoveMap = make(map[string]uint32, 0)
+	g.InscriptionsCommitRemoveMap = make(map[string]uint32, 0)
+}
+
 func (g *BRC20ModuleIndexer) SaveDataToDB(dbConnInfo string, height uint32) {
 	loader.Init(dbConnInfo)
 	defer loader.SwapDB.Close()

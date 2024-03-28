@@ -73,6 +73,8 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 				log.Printf("height: %d, saving database...", lastHeight)
 				g.SaveDataToDB(psqlInfo, lastHeight)
 				log.Printf("save database ok")
+
+				g.PurgeHistoricalData()
 			}
 
 			brc20DatasPerHeight = []*brc20swapModel.InscriptionBRC20Data{}
