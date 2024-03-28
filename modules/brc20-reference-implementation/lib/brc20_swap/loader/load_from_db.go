@@ -199,16 +199,20 @@ INNER JOIN (
 }
 
 func LoadFromDBValidTransferMap() (res map[string]*model.InscriptionBRC20TickInfo, err error) {
-	rows, err := SwapDB.Query(`
-SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount,
-	   t1.inscription_number, t1.inscription_id,
+	query := `
+SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount, 
+	   t1.inscription_number, t1.inscription_id, 
 	   t1.txid, t1.vout, t1.output_value, t1.output_offset
 FROM brc20_valid_transfer t1
 INNER JOIN (
 	SELECT MAX(block_height) as block_height, create_key FROM brc20_valid_transfer GROUP BY create_key
-) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key;
-`)
+) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key
+LEFT JOIN brc20_transfer_state t3 ON t1.create_key = t3.create_key
+WHERE t3.moved IS NULL
+`
+	// log.Println("query", query)
 
+	rows, err := SwapDB.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -544,6 +548,8 @@ INNER JOIN (
 	FROM brc20_swap_valid_approve %s
 	GROUP BY create_key
 ) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key
+LEFT JOIN brc20_swap_approve_state t3 ON t3.create_key = t1.create_key
+WHERE t3.moved IS NULL
 `, condSql)
 
 	// 执行查询
@@ -621,15 +627,17 @@ func LoadFromDBSwapCondApproveMap(createKeys []string) (map[string]*model.Inscri
 	}
 
 	query := fmt.Sprintf(`
-SELECT t1.block_height, create_key, t1.module_id, t1.tick, t1.pkscript, t1.amount,
+SELECT t1.block_height, t1.create_key, t1.module_id, t1.tick, t1.pkscript, t1.amount,
 	t1.inscription_number, t1.inscription_id,
 	t1.txid, t1.vout, t1.output_value, t1.output_offset
 FROM brc20_swap_valid_cond_approve t1
 INNER JOIN (
-	SELECT MAX(block_height) as block_height, inscription_id
+	SELECT MAX(block_height) as block_height, create_key
 	FROM brc20_swap_valid_cond_approve %s
-	GROUP BY inscription_id
-) t2 ON t1.block_height = t2.block_height AND t1.inscription_id = t2.inscription_id
+	GROUP BY create_key
+) t2 ON t1.block_height = t2.block_height AND t1.create_key = t2.create_key
+LEFT JOIN brc20_swap_cond_approve_state t3 ON t1.create_key = t3.create_key
+WHERE t3.moved IS NULL
 `, inCondSql)
 
 	rows, err := SwapDB.Query(query, inArgs...)
@@ -713,6 +721,8 @@ INNER JOIN (
 	SELECT create_key, MAX(block_height) AS max_height
 	FROM brc20_swap_valid_commit %s GROUP BY create_key
 ) sub ON vc.create_key = sub.create_key AND vc.block_height = sub.max_height
+LEFT JOIN brc20_swap_commit_state cs ON vc.create_key = cs.create_key
+WHERE cs.moved IS NULL
 `, whereCond)
 
 	rows, err := SwapDB.Query(query, args...)
@@ -791,6 +801,8 @@ INNER JOIN (
 	SELECT create_key, MAX(block_height) AS max_height
 	FROM brc20_swap_valid_withdraw %s GROUP BY create_key
 ) sub ON vw.create_key = sub.create_key AND vw.block_height = sub.max_height
+LEFT JOIN brc20_swap_withdraw_state ws ON vw.create_key = ws.create_key
+WHERE ws.moved IS NULL
 `, whereCond)
 
 	rows, err := SwapDB.Query(query, args...)
