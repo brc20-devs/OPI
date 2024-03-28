@@ -69,11 +69,12 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(dbConnInfo string, height int) {
 	if g.UserTokensBalanceData, err = loader.LoadFromDbUserTokensBalanceData(nil, nil); err != nil {
 		log.Fatal("LoadFromDBUserTokensBalanceData failed: ", err)
 	}
+	g.TokenUsersBalanceData = loader.UserTokensBalanceMap2TokenUsersBalanceMap(g.UserTokensBalanceData)
 	logger.Log.Debug("LoadFromDBUserTokensBalanceData",
 		zap.String("duration", time.Since(st).String()),
-		zap.Int("count", len(g.UserTokensBalanceData)),
+		zap.Int("ticks", len(g.TokenUsersBalanceData)),
+		zap.Int("addresses", len(g.UserTokensBalanceData)),
 	)
-	g.TokenUsersBalanceData = loader.UserTokensBalanceMap2TokenUsersBalanceMap(g.UserTokensBalanceData)
 
 	st = time.Now()
 	if g.InscriptionsTransferRemoveMap, err = loader.LoadFromDBTransferStateMap(); err != nil {
