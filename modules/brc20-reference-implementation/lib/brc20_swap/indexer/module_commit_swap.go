@@ -135,6 +135,9 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionSwap(moduleInfo *model.BRC20Mo
 	tokenInBalance := moduleInfo.GetUserTokenBalance(tokenIn, f.PkScript)
 	tokenOutBalance := moduleInfo.GetUserTokenBalance(tokenOut, f.PkScript)
 
+	tokenInBalance.UpdateHeight = g.CurrentHeight
+	tokenOutBalance.UpdateHeight = g.CurrentHeight
+
 	if tokenInBalance.SwapAccountBalance.Cmp(tokenInAmt) < 0 {
 		return errors.New(fmt.Sprintf("swap[%s]: user tokenIn balance insufficient: %s < %s",
 			f.ID,
@@ -148,6 +151,8 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionSwap(moduleInfo *model.BRC20Mo
 	// swap add
 	pool.TickBalance[tokenInIdx] = pool.TickBalance[tokenInIdx].Add(amountIn)
 	tokenOutBalance.SwapAccountBalance = tokenOutBalance.SwapAccountBalance.Add(amountOut)
+
+	pool.UpdateHeight = g.CurrentHeight
 
 	log.Printf("[%s] pool after swap [%s] %s: %s, %s: %s, lp: %s", moduleInfo.ID, poolPair, pool.Tick[0], pool.TickBalance[0], pool.Tick[1], pool.TickBalance[1], pool.LpBalance)
 	return nil

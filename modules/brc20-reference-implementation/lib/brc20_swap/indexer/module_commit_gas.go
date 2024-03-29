@@ -31,6 +31,9 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionGasFee(moduleInfo *model.BRC20
 	tokenBalance.SwapAccountBalance = tokenBalance.SwapAccountBalance.Sub(gasAmt)
 	gasToBalance.SwapAccountBalance = gasToBalance.SwapAccountBalance.Add(gasAmt)
 
+	tokenBalance.UpdateHeight = g.CurrentHeight
+	gasToBalance.UpdateHeight = g.CurrentHeight
+
 	log.Printf("gas fee[%s]: %s user: %s, gasTo: %s", moduleInfo.GasTick, gasAmt, tokenBalance.SwapAccountBalance, gasToBalance.SwapAccountBalance)
 	return nil
 }

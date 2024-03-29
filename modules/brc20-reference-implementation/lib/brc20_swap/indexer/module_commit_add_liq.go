@@ -84,6 +84,8 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionAddLiquidity(moduleInfo *model
 				lpFeelpbalance := usersLpBalanceInPool[moduleInfo.LpFeePkScript]
 				lpFeelpbalance = lpFeelpbalance.Add(lpFee)
 				usersLpBalanceInPool[moduleInfo.LpFeePkScript] = lpFeelpbalance
+				// set update flag
+				moduleInfo.LPTokenUsersBalanceUpdatedMap[poolPair+moduleInfo.LpFeePkScript] = struct{}{}
 				// lpFee-lp-balance
 				lpFeelpsBalance, ok := moduleInfo.UsersLPTokenBalanceMap[moduleInfo.LpFeePkScript]
 				if !ok {
@@ -135,6 +137,10 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionAddLiquidity(moduleInfo *model
 	// User Real-time Balance Update
 	token0Balance.SwapAccountBalance = token0Balance.SwapAccountBalance.Sub(token0Amt)
 	token1Balance.SwapAccountBalance = token1Balance.SwapAccountBalance.Sub(token1Amt)
+
+	token0Balance.UpdateHeight = g.CurrentHeight
+	token1Balance.UpdateHeight = g.CurrentHeight
+
 	// fixme: User safety balance update
 
 	// lp balance update
@@ -168,6 +174,8 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionAddLiquidity(moduleInfo *model
 	pool.TickBalance[token0Idx] = pool.TickBalance[token0Idx].Add(token0Amt)
 	pool.TickBalance[token1Idx] = pool.TickBalance[token1Idx].Add(token1Amt)
 	pool.LpBalance = pool.LpBalance.Add(lpForPool)
+
+	pool.UpdateHeight = g.CurrentHeight
 
 	// update lastRootK
 	pool.LastRootK = pool.TickBalance[token0Idx].Mul(pool.TickBalance[token1Idx]).Sqrt()
