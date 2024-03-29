@@ -1,4 +1,6 @@
 const bitcoin = require('bitcoinjs-lib');
+const ecc = require('tiny-secp256k1');
+bitcoin.initEccLib(ecc)
 
 let network = bitcoin.networks.bitcoin;
 if (process.env.NETWORK == "testnet") {
