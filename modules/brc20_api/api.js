@@ -528,8 +528,8 @@ app.get('/v1/brc20_swap/history', async (request, response) => {
     let { module_id, start_height, end_height, cursor, size } = request.query;
     start_height = parseInt(start_height);
     end_height = parseInt(end_height);
-    cursor = parseInt(cursor);
-    size = parseInt(size);
+    cursor = parseInt(cursor) || 0;
+    size = parseInt(size) || 10;
 
     if (!history_type_id_to_name) {
       history_type_id_to_name = {}
@@ -580,11 +580,68 @@ app.get('/v1/brc20_swap/history', async (request, response) => {
   }
 });
 
+app.get('/v1/brc20/tick_holders', async (request, response) => {
+  try {
+    console.log(`${request.protocol}://${request.get('host')}${request.originalUrl}`)
+
+    let { tick, cursor, size } = request.query;
+    cursor = parseInt(cursor) || 0;
+    size = parseInt(size) || 10;
+
+    let query = `
+                with max_height_data as (
+                    select tick, pkscript, max(block_height) as max_height
+                    from public.brc20_user_balance
+                    where tick = $1
+                    group by tick, pkscript
+                ),
+                filtered_data as (
+                    select 
+                        encode(b.pkscript, 'hex') as pkscript,
+                        b.available_balance,
+                        b.transferable_balance
+                    from public.brc20_user_balance b
+                    join max_height_data m on b.tick = m.tick and b.pkscript = m.pkscript and b.block_height = m.max_height
+                    where b.available_balance + b.transferable_balance > 0
+                )
+                select 
+                    *,
+                    count(*) over() as total_count
+                from filtered_data
+                limit $2
+                offset $3;
+              `;
+
+    let params = [tick, size, cursor];
+
+    let res = await query_db(query, params)
+    if (res.rows.length == 0) {
+      response.status(400).send({ error: 'no tick info found', result: null })
+      return
+    }
+    let total = parseInt(res.rows[0].total_count);
+    res.rows.forEach((row) => {
+      row.address = address_from_pkscript(row.pkscript);
+      delete row.total_count
+    })
+    let ret = {
+      total,
+      list: res.rows
+    }
+    response.send({ error: null, result: ret })
+  } catch (err) {
+    console.log(err)
+    response.status(500).send({ error: 'internal error', result: null })
+  }
+})
+
 app.get('/v1/brc20/status', async (request, response) => {
   try {
     console.log(`${request.protocol}://${request.get('host')}${request.originalUrl}`)
 
     let { cursor, size } = request.query;
+    cursor = parseInt(cursor) || 0;
+    size = parseInt(size) || 10;
 
     let query = `
                   with latest_data as (
