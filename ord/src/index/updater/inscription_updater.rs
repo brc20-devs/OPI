@@ -562,7 +562,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     let inscription_id = flotsam.inscription_id;
     let txcnt_of_inscr: i64 = self.id_to_txcnt.get(&inscription_id.store())?
         .map(|txcnt| txcnt.value())
-        .unwrap_or(0) + 1;
+        .unwrap_or(-1) + 1;
     self.id_to_txcnt.insert(&inscription_id.store(), &txcnt_of_inscr)?;
 
     let (unbound, sequence_number) = match flotsam.origin {
