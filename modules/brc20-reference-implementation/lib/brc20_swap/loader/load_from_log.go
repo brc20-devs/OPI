@@ -59,7 +59,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			if len(fields) != 4 {
 				continue
 			}
-			blocktimeStr := fields[1]
+			blocktimeStr := fields[2]
 			blocktime, err = strconv.Atoi(blocktimeStr)
 			if err != nil {
 				continue
