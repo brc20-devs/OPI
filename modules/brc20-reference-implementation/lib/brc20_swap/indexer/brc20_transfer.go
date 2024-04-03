@@ -113,13 +113,12 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 	if token, ok := userTokens[uniqueLowerTicker]; !ok {
 		tokenBalance = &model.BRC20TokenBalance{Ticker: transferInfo.Tick, PkScript: receiverPkScript}
 		userTokens[uniqueLowerTicker] = tokenBalance
-
-		// set token's users
-		tokenUsers := g.TokenUsersBalanceData[uniqueLowerTicker]
-		tokenUsers[receiverPkScript] = tokenBalance
 	} else {
 		tokenBalance = token
 	}
+	// set token's users
+	tokenUsers := g.TokenUsersBalanceData[uniqueLowerTicker]
+	tokenUsers[receiverPkScript] = tokenBalance
 
 	// set from
 	fromTokenBalance.UpdateHeight = data.Height
