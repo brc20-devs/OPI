@@ -204,6 +204,9 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if err != nil {
 			continue
 		}
+		if sequence == 2 {
+			sequence = 1
+		}
 
 		satoshiStr := fields[9]
 		satoshi, err := strconv.Atoi(satoshiStr)
