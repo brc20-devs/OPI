@@ -163,7 +163,7 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 
 	////////////////////////////////////////////////////////////////
 	// module deposit
-	moduleId, ok := utils.GetModuleFromScript([]byte(history.PkScriptTo))
+	moduleId, ok := utils.GetModuleFromScript([]byte(receiverPkScript))
 	if !ok {
 		// errors.New("module transfer, not module")
 		return nil
@@ -179,7 +179,7 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 	moduleInfo.History = append(moduleInfo.History, mHistory)
 
 	// get user's tokens to update
-	moduleTokenBalance := moduleInfo.GetUserTokenBalance(transferInfo.Tick, history.PkScriptFrom)
+	moduleTokenBalance := moduleInfo.GetUserTokenBalance(transferInfo.Tick, senderPkScript)
 	moduleTokenBalance.UpdateHeight = data.Height
 	// set module deposit
 	if data.BlockTime > 0 { // how many confirmes ok
