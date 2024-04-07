@@ -85,6 +85,14 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 		brc20DatasPerHeight = append(brc20DatasPerHeight, data)
 	}
 
+	for _, holdersBalanceMap := range g.TokenUsersBalanceData {
+		for key, balance := range holdersBalanceMap {
+			if balance.AvailableBalance.Sign() == 0 && balance.TransferableBalance.Sign() == 0 {
+				delete(holdersBalanceMap, key)
+			}
+		}
+	}
+
 	model.GSwap = g
 
 	log.Printf("dumping output...")
