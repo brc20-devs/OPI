@@ -76,7 +76,9 @@ INNER JOIN (
 		nmax := decimal.MustNewDecimalFromString(max, int(decimals))
 		minted := nmax.Sub(nremaining)
 
-		tickerInfoMap[tick] = &model.BRC20TokenInfo{
+		uniqueLowerTicker := strings.ToLower(tick)
+
+		tickerInfoMap[uniqueLowerTicker] = &model.BRC20TokenInfo{
 			Ticker: tick,
 			Deploy: &model.InscriptionBRC20TickInfo{
 				Max:         nmax,

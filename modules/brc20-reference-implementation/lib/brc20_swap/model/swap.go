@@ -368,6 +368,7 @@ func (m *BRC20ModuleSwapInfo) CherryPick(pickUsersPkScript, pickTokensTick, pick
 		GasTick:     m.GasTick,
 
 		// runtime for commit
+		CommitInvalidMap: make(map[string]struct{}, 0),
 		CommitIdChainMap: make(map[string]struct{}, 0),
 		CommitIdMap:      make(map[string]struct{}, 0),
 
@@ -384,7 +385,8 @@ func (m *BRC20ModuleSwapInfo) CherryPick(pickUsersPkScript, pickTokensTick, pick
 		UsersLPTokenBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
 
 		// lp token balance of address in module [pair][address]balance
-		LPTokenUsersBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
+		LPTokenUsersBalanceMap:        make(map[string]map[string]*decimal.Decimal, 0),
+		LPTokenUsersBalanceUpdatedMap: make(map[string]struct{}, 0),
 
 		// swap total balance
 		// total balance of pool in module [pair]balanceData

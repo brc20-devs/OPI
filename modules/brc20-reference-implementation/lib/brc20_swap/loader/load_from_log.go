@@ -59,7 +59,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			if len(fields) != 4 {
 				continue
 			}
-			blocktimeStr := fields[1]
+			blocktimeStr := fields[2]
 			blocktime, err = strconv.Atoi(blocktimeStr)
 			if err != nil {
 				continue
@@ -203,6 +203,9 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		sequence, err := strconv.Atoi(sequenceStr)
 		if err != nil {
 			continue
+		}
+		if sequence == 2 {
+			sequence = 1
 		}
 
 		satoshiStr := fields[9]

@@ -149,13 +149,13 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.In
 		}
 	}
 
-	for _, holdersBalanceMap := range g.TokenUsersBalanceData {
-		for key, balance := range holdersBalanceMap {
-			if balance.AvailableBalance.Sign() == 0 && balance.TransferableBalance.Sign() == 0 {
-				delete(holdersBalanceMap, key)
-			}
-		}
-	}
+	// for _, holdersBalanceMap := range g.TokenUsersBalanceData {
+	// 	for key, balance := range holdersBalanceMap {
+	// 		if balance.AvailableBalance.Sign() == 0 && balance.TransferableBalance.Sign() == 0 {
+	// 			delete(holdersBalanceMap, key)
+	// 		}
+	// 	}
+	// }
 	if !g.Durty {
 		return
 	}
