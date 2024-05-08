@@ -22,10 +22,7 @@ func (g *BRC20ModuleIndexer) PurgeHistoricalData() {
 	g.InscriptionsCommitRemoveMap = make(map[string]uint32, 0)
 }
 
-func (g *BRC20ModuleIndexer) SaveDataToDB(dbConnInfo string, height uint32) {
-	loader.Init(dbConnInfo)
-	defer loader.SwapDB.Close()
-
+func (g *BRC20ModuleIndexer) SaveDataToDB(height uint32) {
 	// ticker info
 	loader.SaveDataToDBTickerInfoMap(height, g.InscriptionsTickerInfoMap)
 	loader.SaveDataToDBTickerBalanceMap(height, g.TokenUsersBalanceData)
@@ -56,10 +53,7 @@ func (g *BRC20ModuleIndexer) SaveDataToDB(dbConnInfo string, height uint32) {
 
 }
 
-func (g *BRC20ModuleIndexer) LoadDataFromDB(dbConnInfo string, height int) {
-	loader.Init(dbConnInfo)
-	defer loader.SwapDB.Close()
-
+func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
 	var (
 		err error
 		st  time.Time

@@ -2,14 +2,18 @@ package loader
 
 import (
 	"brc20query/lib/brc20_swap/model"
+	"brc20query/logger"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 )
 
 func LoadBRC20InputDataFromDB(brc20Datas chan *model.InscriptionBRC20Data, startHeight int, endHeight int) error {
+	logger.Log.Info("LoadBRC20InputDataFromDB", zap.Int("startHeight", startHeight), zap.Int("endHeight", endHeight))
+
 	batchLimit := 1024
 	for offset := 0; ; offset += batchLimit {
 		if lastHeight, err := loadBRC20InputDataFromDBOnBatch(
@@ -17,6 +21,8 @@ func LoadBRC20InputDataFromDB(brc20Datas chan *model.InscriptionBRC20Data, start
 			return err
 		} else if lastHeight > int32(endHeight) || lastHeight == -1 {
 			return nil
+		} else if offset%10240 == 0 {
+			logger.Log.Debug("LoadBRC20InputDataFromDB", zap.Int32("height", lastHeight), zap.Int("count", offset))
 		}
 	}
 }

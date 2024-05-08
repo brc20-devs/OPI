@@ -24,19 +24,15 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	brc20DatasDump := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 	brc20DatasParse := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 
-	inputFileName := "./data/log_file.txt"
-	log.Printf("loading data...")
-	if _, err := brc20swapLoader.GetBRC20InputDataLineCount(inputFileName); err != nil {
-		log.Printf("invalid input, %s", err)
-		return
-	}
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
+	brc20swapLoader.Init(psqlInfo)
 
-	go func(endHeight int) {
-		if err := brc20swapLoader.LoadBRC20InputDataFromOrdLog(inputFileName, brc20DatasLoad, startHeight, endHeight); err != nil {
-			log.Printf("invalid input, %s", err)
+	go func() {
+		if err := brc20swapLoader.LoadBRC20InputDataFromDB(brc20DatasLoad, startHeight, endHeight); err != nil {
+			log.Printf("load input data from db error: %v", err)
 		}
 		close(brc20DatasLoad)
-	}(endHeight)
+	}()
 
 	go func() {
 		for data := range brc20DatasLoad {
@@ -55,13 +51,11 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 		brc20swapLoader.DumpBRC20InputData("./data/brc20.input.txt", brc20DatasDump, true)
 	}()
 
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
-
 	g := &brc20swapIndexer.BRC20ModuleIndexer{}
 	g.Init()
 
 	log.Printf("loading database...")
-	g.LoadDataFromDB(psqlInfo, startHeight)
+	g.LoadDataFromDB(startHeight)
 	log.Printf("load database ok")
 
 	brc20DatasPerHeight := []*brc20swapModel.InscriptionBRC20Data{}
@@ -73,7 +67,7 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeight, len(brc20DatasPerHeight))
 			if g.Durty {
 				log.Printf("height: %d, saving database...", lastHeight)
-				g.SaveDataToDB(psqlInfo, lastHeight)
+				g.SaveDataToDB(lastHeight)
 				log.Printf("save database ok")
 
 				g.PurgeHistoricalData()
