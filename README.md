@@ -4,6 +4,10 @@
 
 **BRC-20 API** exposes activity on block (block events), balance of a wallet at the start of a given height, current balance of a wallet, block hash and cumulative hash at a given block and hash of all current balances.
 
+The following diagram illustrates the architecture and data flow of the BRC-20 Swap Indexer
+<img src="https://github.com/brc20-devs/brc20-swap-indexer/assets/3053743/e48e394f-579f-41ac-a06a-4a77a40b811f" width="512">
+
+
 # Setup
 
 For detailed installation guides:
