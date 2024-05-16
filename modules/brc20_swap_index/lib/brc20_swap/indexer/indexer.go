@@ -26,7 +26,7 @@ func isJson(contentBody []byte) bool {
 
 // ProcessUpdateLatestBRC20Loop
 func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas []*model.InscriptionBRC20Data, totalDataCount int) {
-	log.Printf("process swap update. total %d", totalDataCount)
+	// log.Printf("process swap update. total %d", totalDataCount)
 
 	g.Durty = false
 	for idx, data := range brc20Datas {
