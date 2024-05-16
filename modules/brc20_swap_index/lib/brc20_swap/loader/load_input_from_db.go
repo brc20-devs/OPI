@@ -37,7 +37,7 @@ FROM ord_transfers AS ts
 LEFT JOIN ord_number_to_id AS n2id ON ts.inscription_id = n2id.inscription_id
 LEFT JOIN ord_content AS c ON ts.inscription_id = c.inscription_id
 LEFT JOIN block_hashes AS h ON ts.block_height = h.block_height 
-WHERE ts.block_height >= %d AND ts.block_height < %d
+WHERE ts.block_height >= %d AND ts.block_height < %d AND n2id.cursed_for_brc20 = false
 ORDER BY ts.id LIMIT %d OFFSET %d
 `, startHeight, endHeight, queryLimit, queryOffset)
 
