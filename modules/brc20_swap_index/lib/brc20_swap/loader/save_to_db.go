@@ -139,7 +139,7 @@ INSERT INTO brc20_history(block_height, tick,
 				h.Amount, h.AvailableBalance, h.TransferableBalance,
 			)
 			if err != nil {
-				log.Panic("PG Statements Exec Wrong: ", err)
+				log.Panic("PG Statements Exec Wrong: ", err, " TxId:", h.TxId, " Idx:", h.Idx, " Vout:", h.Vout, " Satoshi:", h.Satoshi, " Offset:", h.Offset, " PkScriptFrom:", h.PkScriptFrom, " PkScriptTo:", h.PkScriptTo, " Fee:", h.Fee, " TxIdx:", h.TxIdx, " BlockTime:", h.BlockTime, " InscriptionNumber:", h.Inscription.InscriptionNumber, " InscriptionId:", h.Inscription.InscriptionId, " Amount:", h.Amount, " AvailableBalance:", h.AvailableBalance, " TransferableBalance:", h.TransferableBalance)
 			}
 
 			if _, err := res.RowsAffected(); err != nil {
