@@ -3,7 +3,7 @@ package decimal_test
 import (
 	"testing"
 
-	"brc20query/lib/brc20_swap/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
 )
 
 func TestNewDecimalFromString(t *testing.T) {

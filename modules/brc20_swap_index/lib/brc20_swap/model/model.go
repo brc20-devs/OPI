@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/utils"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 // nft create point on create
@@ -35,6 +35,7 @@ type InscriptionBRC20Data struct {
 	Fee      int64  `json:"-"`
 
 	InscriptionNumber int64
+	Parent            []byte
 	ContentBody       []byte
 	CreateIdxKey      string
 
@@ -55,13 +56,14 @@ func (data *InscriptionBRC20Data) GetInscriptionId() string {
 }
 
 type InscriptionBRC20InfoResp struct {
-	Operation    string `json:"op,omitempty"`
-	BRC20Tick    string `json:"tick,omitempty"`
-	BRC20Max     string `json:"max,omitempty"`
-	BRC20Limit   string `json:"lim,omitempty"`
-	BRC20Amount  string `json:"amt,omitempty"`
-	BRC20Decimal string `json:"decimal,omitempty"`
-	BRC20Minted  string `json:"minted,omitempty"`
+	Operation     string `json:"op,omitempty"`
+	BRC20Tick     string `json:"tick,omitempty"`
+	BRC20Max      string `json:"max,omitempty"`
+	BRC20Limit    string `json:"lim,omitempty"`
+	BRC20Amount   string `json:"amt,omitempty"`
+	BRC20Decimal  string `json:"decimal,omitempty"`
+	BRC20Minted   string `json:"minted,omitempty"`
+	BRC20SelfMint string `json:"self_mint,omitempty"`
 }
 
 // decode protocal
@@ -114,12 +116,13 @@ func (body *InscriptionBRC20MintTransferContent) Unmarshal(contentBody []byte) (
 
 // decode deploy data
 type InscriptionBRC20DeployContent struct {
-	Proto        string `json:"p,omitempty"`
-	Operation    string `json:"op,omitempty"`
-	BRC20Tick    string `json:"tick,omitempty"`
-	BRC20Max     string `json:"max,omitempty"`
-	BRC20Limit   string `json:"lim,omitempty"`
-	BRC20Decimal string `json:"dec,omitempty"`
+	Proto         string `json:"p,omitempty"`
+	Operation     string `json:"op,omitempty"`
+	BRC20Tick     string `json:"tick,omitempty"`
+	BRC20Max      string `json:"max,omitempty"`
+	BRC20Limit    string `json:"lim,omitempty"`
+	BRC20Decimal  string `json:"dec,omitempty"`
+	BRC20SelfMint string `json:"self_mint,omitempty"`
 }
 
 func (body *InscriptionBRC20DeployContent) Unmarshal(contentBody []byte) (err error) {
@@ -135,6 +138,12 @@ func (body *InscriptionBRC20DeployContent) Unmarshal(contentBody []byte) (err er
 	}
 	if v, ok := bodyMap["tick"].(string); ok {
 		body.BRC20Tick = v
+	}
+	if _, ok := bodyMap["self_mint"]; ok { // has self_mint
+		body.BRC20SelfMint = "false"
+	}
+	if v, ok := bodyMap["self_mint"].(string); ok { // self_mint is string
+		body.BRC20SelfMint = v
 	}
 	if v, ok := bodyMap["max"].(string); ok {
 		body.BRC20Max = v
@@ -165,11 +174,11 @@ type BRC20TokenInfo struct {
 	Ticker string
 	Deploy *InscriptionBRC20TickInfo
 
-	// empty
-	History                 []*BRC20History
-	HistoryMint             []*BRC20History
-	HistoryInscribeTransfer []*BRC20History
-	HistoryTransfer         []*BRC20History
+	History                 []uint32
+	HistoryMint             []uint32
+	HistoryInscribeTransfer []uint32
+	HistoryTransfer         []uint32
+	HistoryWithdraw         []uint32 // fixme
 }
 
 type InscriptionBRC20TransferInfo struct {
@@ -183,8 +192,9 @@ type InscriptionBRC20TickInfo struct {
 	Data   *InscriptionBRC20InfoResp `json:"data"`
 	Tick   string
 	Amount *decimal.Decimal `json:"-"`
-	//ContentBody []byte           `json:"content"`
-	Meta *InscriptionBRC20Data
+	Meta   *InscriptionBRC20Data
+
+	SelfMint bool `json:"-"`
 
 	Max   *decimal.Decimal `json:"-"`
 	Limit *decimal.Decimal `json:"-"`
@@ -193,6 +203,7 @@ type InscriptionBRC20TickInfo struct {
 	ConfirmedMinted    *decimal.Decimal `json:"-"`
 	ConfirmedMinted1h  *decimal.Decimal `json:"-"`
 	ConfirmedMinted24h *decimal.Decimal `json:"-"`
+	Burned             *decimal.Decimal `json:"-"`
 
 	MintTimes uint32 `json:"-"`
 	Decimal   uint8  `json:"-"`
@@ -218,8 +229,15 @@ type InscriptionBRC20TickInfo struct {
 	InscriptionNumberEnd   int64 `json:"-"`
 }
 
+func (d *InscriptionBRC20TickInfo) GetInscriptionId() string {
+	return fmt.Sprintf("%si%d", utils.HashString([]byte(d.TxId)), d.Idx)
+}
+
 func (in *InscriptionBRC20TickInfo) DeepCopy() (copy *InscriptionBRC20TickInfo) {
 	copy = &InscriptionBRC20TickInfo{
+		Tick:     in.Tick,
+		SelfMint: in.SelfMint,
+
 		Data:    in.Data,
 		Decimal: in.Decimal,
 
@@ -244,6 +262,7 @@ func (in *InscriptionBRC20TickInfo) DeepCopy() (copy *InscriptionBRC20TickInfo) 
 		ConfirmedMinted:    decimal.NewDecimalCopy(in.ConfirmedMinted),
 		ConfirmedMinted1h:  decimal.NewDecimalCopy(in.ConfirmedMinted1h),
 		ConfirmedMinted24h: decimal.NewDecimalCopy(in.ConfirmedMinted24h),
+		Burned:             decimal.NewDecimalCopy(in.Burned),
 		Amount:             decimal.NewDecimalCopy(in.Amount),
 
 		MintTimes: in.MintTimes,
@@ -259,6 +278,7 @@ func (in *InscriptionBRC20TickInfo) DeepCopy() (copy *InscriptionBRC20TickInfo) 
 
 func NewInscriptionBRC20TickInfo(tick, operation string, data *InscriptionBRC20Data) *InscriptionBRC20TickInfo {
 	info := &InscriptionBRC20TickInfo{
+		Tick: tick,
 		Data: &InscriptionBRC20InfoResp{
 			BRC20Tick: tick,
 			Operation: operation,
@@ -284,7 +304,7 @@ func NewInscriptionBRC20TickInfo(tick, operation string, data *InscriptionBRC20D
 
 // all history for user
 type BRC20UserHistory struct {
-	History []*BRC20History
+	History []uint32
 }
 
 // state of address for each tick, (balance and history)
@@ -298,11 +318,11 @@ type BRC20TokenBalance struct {
 	TransferableBalance  *decimal.Decimal
 	ValidTransferMap     map[string]*InscriptionBRC20TickInfo
 
-	History                 []*BRC20History
-	HistoryMint             []*BRC20History
-	HistoryInscribeTransfer []*BRC20History
-	HistorySend             []*BRC20History
-	HistoryReceive          []*BRC20History
+	History                 []uint32
+	HistoryMint             []uint32
+	HistoryInscribeTransfer []uint32
+	HistorySend             []uint32
+	HistoryReceive          []uint32
 }
 
 func (bal *BRC20TokenBalance) OverallBalance() *decimal.Decimal {
@@ -323,19 +343,19 @@ func (in *BRC20TokenBalance) DeepCopy() (tb *BRC20TokenBalance) {
 		tb.ValidTransferMap[k] = v.DeepCopy()
 	}
 
-	tb.History = make([]*BRC20History, len(in.History))
+	tb.History = make([]uint32, len(in.History))
 	copy(tb.History, in.History)
 
-	tb.HistoryMint = make([]*BRC20History, len(in.HistoryMint))
+	tb.HistoryMint = make([]uint32, len(in.HistoryMint))
 	copy(tb.HistoryMint, in.HistoryMint)
 
-	tb.HistoryInscribeTransfer = make([]*BRC20History, len(in.HistoryInscribeTransfer))
+	tb.HistoryInscribeTransfer = make([]uint32, len(in.HistoryInscribeTransfer))
 	copy(tb.HistoryInscribeTransfer, in.HistoryInscribeTransfer)
 
-	tb.HistorySend = make([]*BRC20History, len(in.HistorySend))
+	tb.HistorySend = make([]uint32, len(in.HistorySend))
 	copy(tb.HistorySend, in.HistorySend)
 
-	tb.HistoryReceive = make([]*BRC20History, len(in.HistoryReceive))
+	tb.HistoryReceive = make([]uint32, len(in.HistoryReceive))
 	copy(tb.HistoryReceive, in.HistoryReceive)
 	return tb
 }

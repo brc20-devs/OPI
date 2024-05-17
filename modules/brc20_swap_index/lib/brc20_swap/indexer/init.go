@@ -1,21 +1,28 @@
 package indexer
 
 import (
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
 	"log"
 	"strings"
+
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
 )
 
 type BRC20ModuleIndexer struct {
-	// save flag
-	Durty         bool
+	BestHeight    uint32
+	Durty         bool // save flag
 	EnableHistory bool
-	// runtime
-	CurrentHeight uint32
+
+	HistoryCount uint32
+	HistoryData  [][]byte
+
+	// history height
+	FirstHistoryByHeight map[uint32]uint32
+	LastHistoryHeight    uint32
 
 	// brc20 base
-	AllHistory     []*model.BRC20History
+	AllHistory     []uint32 // all valid history
 	UserAllHistory map[string]*model.BRC20UserHistory
 
 	InscriptionsTickerInfoMap     map[string]*model.BRC20TokenInfo
@@ -40,9 +47,9 @@ type BRC20ModuleIndexer struct {
 	UsersModuleWithLpTokenMap map[string]string
 
 	// runtime for approve
-	InscriptionsApproveRemoveMap  map[string]uint32                          // remove at height
 	InscriptionsValidApproveMap   map[string]*model.InscriptionBRC20SwapInfo // inner valid approve [create_key]
-	InscriptionsInvalidApproveMap map[string]*model.InscriptionBRC20SwapInfo
+	InscriptionsInvalidApproveMap map[string]*model.InscriptionBRC20SwapInfo //
+	InscriptionsApproveRemoveMap  map[string]uint32                          // remove at height
 
 	// runtime for conditional approve
 	InscriptionsCondApproveRemoveMap         map[string]uint32 // remove at height
@@ -85,9 +92,40 @@ func (g *BRC20ModuleIndexer) GetBRC20HistoryByUserForAPI(pkScript string) (userH
 	return userHistory
 }
 
+func (g *BRC20ModuleIndexer) UpdateHistoryHeightAndGetHistoryIndex(historyObj *model.BRC20History) uint32 {
+	height := historyObj.Height
+	history := g.HistoryCount
+	g.HistoryData = append(g.HistoryData, historyObj.Marshal())
+	g.HistoryCount += 1
+
+	if height == g.LastHistoryHeight || height == constant.MEMPOOL_HEIGHT {
+		return history
+	}
+
+	if g.LastHistoryHeight == 0 {
+		g.FirstHistoryByHeight[height] = history
+	} else {
+		for h := g.LastHistoryHeight + 1; h <= height; h++ {
+			g.FirstHistoryByHeight[h] = history
+		}
+	}
+	g.LastHistoryHeight = height
+
+	return history
+}
+
 func (g *BRC20ModuleIndexer) initBRC20() {
+	g.EnableHistory = true
+	g.BestHeight = 0
+
+	g.HistoryCount = 0
+	g.HistoryData = make([][]byte, 0)
+
+	g.FirstHistoryByHeight = make(map[uint32]uint32, 0)
+	g.LastHistoryHeight = 0
+
 	// all history
-	g.AllHistory = make([]*model.BRC20History, 0)
+	g.AllHistory = make([]uint32, 0)
 
 	// user history
 	g.UserAllHistory = make(map[string]*model.BRC20UserHistory, 0)
@@ -138,6 +176,30 @@ func (g *BRC20ModuleIndexer) initModule() {
 	g.InscriptionsInvalidCommitMap = make(map[string]*model.InscriptionBRC20Data, 0)
 
 	g.InscriptionsValidCommitMapById = make(map[string]*model.InscriptionBRC20Data, 0) // inner valid commit
+}
+
+func (g *BRC20ModuleIndexer) GetUserTokenBalance(ticker, userPkScript string) (tokenBalance *model.BRC20TokenBalance) {
+	uniqueLowerTicker := strings.ToLower(ticker)
+	// get user's tokens to update
+	var userTokens map[string]*model.BRC20TokenBalance
+	if tokens, ok := g.UserTokensBalanceData[userPkScript]; !ok {
+		userTokens = make(map[string]*model.BRC20TokenBalance, 0)
+		g.UserTokensBalanceData[userPkScript] = userTokens
+	} else {
+		userTokens = tokens
+	}
+	// get tokenBalance to update
+	if tb, ok := userTokens[uniqueLowerTicker]; !ok {
+		tokenBalance = &model.BRC20TokenBalance{Ticker: ticker, PkScript: userPkScript}
+		userTokens[uniqueLowerTicker] = tokenBalance
+	} else {
+		tokenBalance = tb
+	}
+	// set token's users
+	tokenUsers := g.TokenUsersBalanceData[uniqueLowerTicker]
+	tokenUsers[userPkScript] = tokenBalance
+
+	return tokenBalance
 }
 
 func (g *BRC20ModuleIndexer) GenerateApproveEventsByTransfer(inscription, tick, from, to string, amt *decimal.Decimal) (events []*model.ConditionalApproveEvent) {
@@ -212,9 +274,30 @@ func (g *BRC20ModuleIndexer) GenerateApproveEventsByApprove(owner string, balanc
 
 func (copyDup *BRC20ModuleIndexer) deepCopyBRC20Data(base *BRC20ModuleIndexer) {
 	// history
-	// for _, h := range base.AllHistory {
-	// 	copyDup.AllHistory = append(copyDup.AllHistory, h)
-	// }
+	copyDup.BestHeight = base.BestHeight
+	copyDup.EnableHistory = base.EnableHistory
+	copyDup.HistoryCount = base.HistoryCount
+
+	for height, history := range base.FirstHistoryByHeight {
+		copyDup.FirstHistoryByHeight[height] = history
+	}
+	copyDup.LastHistoryHeight = base.LastHistoryHeight
+
+	for _, h := range base.HistoryData {
+		copyDup.HistoryData = append(copyDup.HistoryData, h)
+	}
+
+	copyDup.AllHistory = make([]uint32, len(base.AllHistory))
+	copy(copyDup.AllHistory, base.AllHistory)
+
+	// userhistory
+	for u, userHistory := range base.UserAllHistory {
+		h := &model.BRC20UserHistory{
+			History: make([]uint32, len(userHistory.History)),
+		}
+		copy(h.History, userHistory.History)
+		copyDup.UserAllHistory[u] = h
+	}
 
 	for k, v := range base.InscriptionsTickerInfoMap {
 		tinfo := &model.BRC20TokenInfo{
@@ -223,16 +306,16 @@ func (copyDup *BRC20ModuleIndexer) deepCopyBRC20Data(base *BRC20ModuleIndexer) {
 		}
 
 		// history
-		tinfo.History = make([]*model.BRC20History, len(v.History))
+		tinfo.History = make([]uint32, len(v.History))
 		copy(tinfo.History, v.History)
 
-		tinfo.HistoryMint = make([]*model.BRC20History, len(v.HistoryMint))
+		tinfo.HistoryMint = make([]uint32, len(v.HistoryMint))
 		copy(tinfo.HistoryMint, v.HistoryMint)
 
-		tinfo.HistoryInscribeTransfer = make([]*model.BRC20History, len(v.HistoryInscribeTransfer))
+		tinfo.HistoryInscribeTransfer = make([]uint32, len(v.HistoryInscribeTransfer))
 		copy(tinfo.HistoryInscribeTransfer, v.HistoryInscribeTransfer)
 
-		tinfo.HistoryTransfer = make([]*model.BRC20History, len(v.HistoryTransfer))
+		tinfo.HistoryTransfer = make([]uint32, len(v.HistoryTransfer))
 		copy(tinfo.HistoryTransfer, v.HistoryTransfer)
 
 		// set info
@@ -262,6 +345,10 @@ func (copyDup *BRC20ModuleIndexer) deepCopyBRC20Data(base *BRC20ModuleIndexer) {
 	// transferInfo
 	for k, v := range base.InscriptionsValidTransferMap {
 		copyDup.InscriptionsValidTransferMap[k] = v
+	}
+	// fixme: disable invalid copy
+	for k, v := range base.InscriptionsInvalidTransferMap {
+		copyDup.InscriptionsInvalidTransferMap[k] = v
 	}
 
 	log.Printf("deepCopyBRC20Data finish. total: %d", len(base.InscriptionsTickerInfoMap))
@@ -378,15 +465,10 @@ func (copyDup *BRC20ModuleIndexer) cherryPickModuleData(base *BRC20ModuleIndexer
 	log.Printf("cherryPickModuleData finish. total: %d", len(base.ModulesInfoMap))
 }
 
-func (g *BRC20ModuleIndexer) Init() {
-	g.initBRC20()
-	g.initModule()
-}
-
 func (base *BRC20ModuleIndexer) DeepCopy() (copyDup *BRC20ModuleIndexer) {
+	log.Printf("DeepCopy enter")
 	copyDup = &BRC20ModuleIndexer{}
-	copyDup.initBRC20()
-	copyDup.initModule()
+	copyDup.Init()
 
 	copyDup.deepCopyBRC20Data(base)
 	copyDup.deepCopyModuleData(base)
@@ -394,9 +476,9 @@ func (base *BRC20ModuleIndexer) DeepCopy() (copyDup *BRC20ModuleIndexer) {
 }
 
 func (base *BRC20ModuleIndexer) CherryPick(module string, pickUsersPkScript, pickTokensTick, pickPoolsPair map[string]bool) (copyDup *BRC20ModuleIndexer) {
+	log.Printf("CherryPick enter")
 	copyDup = &BRC20ModuleIndexer{}
-	copyDup.initBRC20()
-	copyDup.initModule()
+	copyDup.Init()
 
 	moduleInfo, ok := base.ModulesInfoMap[module]
 	if ok {

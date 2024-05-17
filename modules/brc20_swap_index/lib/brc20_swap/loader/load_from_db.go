@@ -5,9 +5,8 @@ import (
 	"strings"
 
 	"github.com/lib/pq"
-
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
 )
 
 // buildSQLWhereInStr
@@ -202,8 +201,8 @@ INNER JOIN (
 
 func LoadFromDBValidTransferMap() (res map[string]*model.InscriptionBRC20TickInfo, err error) {
 	query := `
-SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount, 
-	   t1.inscription_number, t1.inscription_id, 
+SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount,
+	   t1.inscription_number, t1.inscription_id,
 	   t1.txid, t1.vout, t1.output_value, t1.output_offset
 FROM brc20_valid_transfer t1
 INNER JOIN (

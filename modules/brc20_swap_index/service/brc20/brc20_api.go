@@ -1,10 +1,6 @@
 package brc20
 
 import (
-	"brc20query/lib/brc20_swap/constant"
-	brc20Model "brc20query/lib/brc20_swap/model"
-	swapModel "brc20query/lib/brc20_swap/model"
-	brc20Utils "brc20query/lib/brc20_swap/utils"
 	"brc20query/lib/utils"
 	"brc20query/logger"
 	"brc20query/model"
@@ -14,6 +10,11 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/unisat-wallet/libbrc20-indexer/conf"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	brc20Model "github.com/unisat-wallet/libbrc20-indexer/model"
+	swapModel "github.com/unisat-wallet/libbrc20-indexer/model"
+	brc20Utils "github.com/unisat-wallet/libbrc20-indexer/utils"
 	"go.uber.org/zap"
 )
 
@@ -44,6 +45,10 @@ func GetBRC20TickerHolders(ticker string, start, size int) (total int, nftsRsp [
 	}
 
 	sort.Slice(holdersBalance, func(i, j int) bool {
+		return strings.Compare(holdersBalance[i].PkScript, holdersBalance[j].PkScript) > 0
+	})
+
+	sort.SliceStable(holdersBalance, func(i, j int) bool {
 		return holdersBalance[i].OverallBalance().Cmp(holdersBalance[j].OverallBalance()) > 0
 	})
 
@@ -52,7 +57,7 @@ func GetBRC20TickerHolders(ticker string, start, size int) (total int, nftsRsp [
 			break
 		}
 
-		address, err := brc20Utils.GetAddressFromScript([]byte(balance.PkScript), constant.GlobalNetParams)
+		address, err := brc20Utils.GetAddressFromScript([]byte(balance.PkScript), conf.GlobalNetParams)
 		if err != nil {
 			address = hex.EncodeToString([]byte(balance.PkScript))
 		}
@@ -157,14 +162,14 @@ func GetBRC20Status(ticker, completeType, sortBy string, start, size int) (total
 
 		uniqueLowerTicker := strings.ToLower(info.Deploy.Data.BRC20Tick)
 
-		txid := utils.GetReversedStringHex(info.Deploy.TxId)
 		nftsRsp = append(nftsRsp, &model.BRC20TickerStatusInfo{
 			Ticker:       info.Deploy.Data.BRC20Tick,
+			SelfMint:     info.Deploy.SelfMint,
 			HoldersCount: len(model.GSwap.TokenUsersBalanceData[uniqueLowerTicker]),
 			HistoryCount: len(info.History),
 
 			InscriptionNumber: info.Deploy.InscriptionNumber,
-			InscriptionId:     fmt.Sprintf("%si%d", txid, info.Deploy.Idx),
+			InscriptionId:     info.Deploy.GetInscriptionId(),
 
 			Max:   info.Deploy.Max.String(),
 			Limit: info.Deploy.Limit.String(),
@@ -242,19 +247,19 @@ func GetBRC20TickerInfo(ticker string) (nftRsp *model.BRC20TickerStatusInfo, err
 
 	uniqueLowerTicker := strings.ToLower(tokenInfo.Deploy.Data.BRC20Tick)
 
-	address, err := brc20Utils.GetAddressFromScript([]byte(tokenInfo.Deploy.PkScript), constant.GlobalNetParams)
+	creatorAddress, err := brc20Utils.GetAddressFromScript([]byte(tokenInfo.Deploy.PkScript), conf.GlobalNetParams)
 	if err != nil {
-		address = hex.EncodeToString([]byte(tokenInfo.Deploy.PkScript))
+		creatorAddress = hex.EncodeToString([]byte(tokenInfo.Deploy.PkScript))
 	}
 
-	txid := utils.GetReversedStringHex(tokenInfo.Deploy.TxId)
 	nftRsp = &model.BRC20TickerStatusInfo{
 		Ticker:       tokenInfo.Deploy.Data.BRC20Tick,
+		SelfMint:     tokenInfo.Deploy.SelfMint,
 		HoldersCount: len(model.GSwap.TokenUsersBalanceData[uniqueLowerTicker]),
 		HistoryCount: len(tokenInfo.History),
 
 		InscriptionNumber: tokenInfo.Deploy.InscriptionNumber,
-		InscriptionId:     fmt.Sprintf("%si%d", txid, tokenInfo.Deploy.Idx),
+		InscriptionId:     tokenInfo.Deploy.GetInscriptionId(),
 
 		Max:   tokenInfo.Deploy.Max.String(),
 		Limit: tokenInfo.Deploy.Limit.String(),
@@ -268,7 +273,7 @@ func GetBRC20TickerInfo(ticker string) (nftRsp *model.BRC20TickerStatusInfo, err
 		MintTimes: tokenInfo.Deploy.MintTimes,
 		Decimal:   tokenInfo.Deploy.Decimal,
 
-		Address:         address,
+		CreatorAddress:  creatorAddress,
 		TxIdHex:         utils.GetReversedStringHex(tokenInfo.Deploy.TxId),
 		DeployHeight:    tokenInfo.Deploy.Height,
 		DeployBlockTime: tokenInfo.Deploy.BlockTime,
@@ -294,34 +299,27 @@ func GetBRC20AllHistoryByHeight(height, start, size int) (total int, nftsRsp []*
 		return 0, nil, errors.New("brc20 not ready")
 	}
 
-	var tokenInfoHistory []*swapModel.BRC20History = model.GSwap.AllHistory
-	var tokenInfoHistoryBase []*swapModel.BRC20History = model.GSwapBase.AllHistory
+	firstHistoryByHeight := model.GSwap.FirstHistoryByHeight
+	var tokenInfoHistory []uint32 = model.GSwap.AllHistory
+
+	firstHistory := firstHistoryByHeight[uint32(height)]
+	lastHistory := firstHistoryByHeight[uint32(height+1)]
 
 	// from current history
-	var tokenInfoHistoryHeight []*swapModel.BRC20History
+	var tokenInfoHistoryHeight []uint32
 	for idx := len(tokenInfoHistory) - 1; idx >= 0; idx-- {
 		history := tokenInfoHistory[idx]
 
-		if height > int(history.Height) {
+		if history < firstHistory {
 			break
-		} else if height < int(history.Height) {
+		}
+		if lastHistory > 0 && history >= lastHistory {
 			continue
 		}
 		tokenInfoHistoryHeight = append(tokenInfoHistoryHeight, history)
 	}
 
-	// from base history
-	for idx := len(tokenInfoHistoryBase) - 1; idx >= 0; idx-- {
-		history := tokenInfoHistoryBase[idx]
-
-		if height > int(history.Height) {
-			break
-		} else if height < int(history.Height) {
-			continue
-		}
-		tokenInfoHistoryHeight = append(tokenInfoHistoryHeight, history)
-	}
-
+	// reverse
 	for i, j := 0, len(tokenInfoHistoryHeight)-1; i < j; i, j = i+1, j-1 {
 		tokenInfoHistoryHeight[i], tokenInfoHistoryHeight[j] = tokenInfoHistoryHeight[j], tokenInfoHistoryHeight[i]
 	}
@@ -336,17 +334,22 @@ func GetBRC20AllHistoryByHeight(height, start, size int) (total int, nftsRsp []*
 	if end > total {
 		end = total
 	}
-	for _, history := range tokenInfoHistory[start:end] {
+	for _, historyIdx := range tokenInfoHistory[start:end] {
+
+		buf := model.GSwap.HistoryData[historyIdx]
+		history := &swapModel.BRC20History{}
+		history.Unmarshal(buf)
+
 		if height != int(history.Height) {
 			continue
 		}
 
-		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), constant.GlobalNetParams)
+		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), conf.GlobalNetParams)
 		if err != nil {
 			addressFrom = hex.EncodeToString([]byte(history.PkScriptFrom))
 		}
 
-		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), constant.GlobalNetParams)
+		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), conf.GlobalNetParams)
 		if err != nil {
 			addressTo = hex.EncodeToString([]byte(history.PkScriptTo))
 		}
@@ -397,10 +400,9 @@ func GetBRC20AllHistoryByAddress(pkScript []byte, start, size int) (total int, n
 		return 0, nil, errors.New("brc20 not ready")
 	}
 
-	var tokenInfoHistory []*swapModel.BRC20History = model.GSwap.GetBRC20HistoryByUserForAPI(string(pkScript)).History
-	var tokenInfoHistoryBase []*swapModel.BRC20History = model.GSwapBase.GetBRC20HistoryByUserForAPI(string(pkScript)).History
+	var tokenInfoHistory []uint32 = model.GSwap.GetBRC20HistoryByUserForAPI(string(pkScript)).History
 
-	total = len(tokenInfoHistory) + len(tokenInfoHistoryBase)
+	total = len(tokenInfoHistory)
 	if start >= total {
 		return total, make([]*model.BRC20TickerHistoryInfo, 0), nil
 	}
@@ -411,7 +413,7 @@ func GetBRC20AllHistoryByAddress(pkScript []byte, start, size int) (total int, n
 	}
 
 	// from current history
-	var tokenInfoHistoryByAddress []*swapModel.BRC20History
+	var tokenInfoHistoryByAddress []uint32
 
 	count := 0
 	if start < len(tokenInfoHistory) {
@@ -428,24 +430,17 @@ func GetBRC20AllHistoryByAddress(pkScript []byte, start, size int) (total int, n
 		end -= len(tokenInfoHistory)
 	}
 
-	if start >= 0 {
-		count := 0
-		// from base history
-		for idx := len(tokenInfoHistoryBase) - 1 - start; idx >= 0 && count < (end-start); idx-- {
-			history := tokenInfoHistoryBase[idx]
+	for _, historyIdx := range tokenInfoHistoryByAddress {
+		buf := model.GSwap.HistoryData[historyIdx]
+		history := &swapModel.BRC20History{}
+		history.Unmarshal(buf)
 
-			tokenInfoHistoryByAddress = append(tokenInfoHistoryByAddress, history)
-			count++
-		}
-	}
-
-	for _, history := range tokenInfoHistoryByAddress {
-		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), constant.GlobalNetParams)
+		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), conf.GlobalNetParams)
 		if err != nil {
 			addressFrom = hex.EncodeToString([]byte(history.PkScriptFrom))
 		}
 
-		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), constant.GlobalNetParams)
+		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), conf.GlobalNetParams)
 		if err != nil {
 			addressTo = hex.EncodeToString([]byte(history.PkScriptTo))
 		}
@@ -499,12 +494,13 @@ func GetBRC20TickerHistory(historyType, ticker string, height, start, size int) 
 		return 0, nil, errors.New("brc20 not ready")
 	}
 
+	firstHistoryByHeight := model.GSwap.FirstHistoryByHeight
 	tokenInfo, ok := model.GSwap.InscriptionsTickerInfoMap[ticker]
 	if !ok {
 		return 0, make([]*model.BRC20TickerHistoryInfo, 0), nil
 	}
 
-	var tokenInfoHistory []*brc20Model.BRC20History = tokenInfo.History
+	var tokenInfoHistory []uint32 = tokenInfo.History
 	if historyType == constant.BRC20_HISTORY_TYPE_INSCRIBE_MINT {
 		tokenInfoHistory = tokenInfo.HistoryMint
 	} else if historyType == constant.BRC20_HISTORY_TYPE_INSCRIBE_TRANSFER {
@@ -514,13 +510,17 @@ func GetBRC20TickerHistory(historyType, ticker string, height, start, size int) 
 	}
 
 	if height > 0 {
-		var tokenInfoHistoryHeight []*brc20Model.BRC20History
+		firstHistory := firstHistoryByHeight[uint32(height)]
+		lastHistory := firstHistoryByHeight[uint32(height+1)]
+
+		var tokenInfoHistoryHeight []uint32
 		for idx := len(tokenInfoHistory) - 1; idx >= 0; idx-- {
 			history := tokenInfoHistory[idx]
 
-			if height > int(history.Height) {
+			if history < firstHistory {
 				break
-			} else if height < int(history.Height) {
+			}
+			if lastHistory > 0 && history >= lastHistory {
 				continue
 			}
 			tokenInfoHistoryHeight = append(tokenInfoHistoryHeight, history)
@@ -538,7 +538,10 @@ func GetBRC20TickerHistory(historyType, ticker string, height, start, size int) 
 
 	count := 0
 	for idx := total - start - 1; idx >= 0; idx-- {
-		history := tokenInfoHistory[idx]
+		historyIdx := tokenInfoHistory[idx]
+		buf := model.GSwap.HistoryData[historyIdx]
+		history := &swapModel.BRC20History{}
+		history.Unmarshal(buf)
 
 		if height > 0 && height != int(history.Height) {
 			continue
@@ -549,12 +552,12 @@ func GetBRC20TickerHistory(historyType, ticker string, height, start, size int) 
 		}
 		count += 1
 
-		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), constant.GlobalNetParams)
+		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), conf.GlobalNetParams)
 		if err != nil {
 			addressFrom = hex.EncodeToString([]byte(history.PkScriptFrom))
 		}
 
-		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), constant.GlobalNetParams)
+		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), conf.GlobalNetParams)
 		if err != nil {
 			addressTo = hex.EncodeToString([]byte(history.PkScriptTo))
 		}
@@ -620,8 +623,17 @@ func GetBRC20SummaryByAddress(pkScript []byte, start, size int) (total int, nfts
 	}
 
 	sort.Slice(tokenBalance, func(i, j int) bool {
+		return strings.Compare(tokenBalance[i].Ticker, tokenBalance[j].Ticker) > 0
+	})
+
+	sort.SliceStable(tokenBalance, func(i, j int) bool {
 		return tokenBalance[i].OverallBalance().CmpAlign(tokenBalance[j].OverallBalance()) > 0
 	})
+
+	total = len(tokenBalance)
+	if start >= total {
+		return total, make([]*model.BRC20TokenSummaryInfo, 0), nil
+	}
 
 	for idx, balance := range tokenBalance[start:] {
 		if idx >= size {
@@ -677,6 +689,11 @@ func GetBRC20SummaryByAddressAndHeight(pkScript []byte, height, start, size int)
 		return strings.Compare(tokenBalance[i].Ticker, tokenBalance[j].Ticker) > 0
 	})
 
+	total = len(tokenBalance)
+	if start >= total {
+		return total, make([]*model.BRC20TokenSummaryInfo, 0), nil
+	}
+
 	for idx, balance := range tokenBalance[start:] {
 		if idx >= size {
 			break
@@ -689,7 +706,12 @@ func GetBRC20SummaryByAddressAndHeight(pkScript []byte, height, start, size int)
 		}
 
 		var lastHistory *swapModel.BRC20History
-		for _, history := range balance.History {
+		for _, historyIdx := range balance.History {
+
+			buf := model.GSwap.HistoryData[historyIdx] // fixme
+			history := &swapModel.BRC20History{}
+			history.Unmarshal(buf)
+
 			if height < int(history.Height) {
 				break
 			}
@@ -736,7 +758,7 @@ func GetBRC20TickerHistoryByAddress(pkScript []byte, historyType, ticker string,
 		return 0, make([]*model.BRC20TickerHistoryInfo, 0), nil
 	}
 
-	var tokenInfoHistory []*brc20Model.BRC20History = tokenInfo.History
+	var tokenInfoHistory []uint32 = tokenInfo.History
 	if historyType == constant.BRC20_HISTORY_TYPE_INSCRIBE_MINT {
 		tokenInfoHistory = tokenInfo.HistoryMint
 	} else if historyType == constant.BRC20_HISTORY_TYPE_INSCRIBE_TRANSFER {
@@ -754,19 +776,22 @@ func GetBRC20TickerHistoryByAddress(pkScript []byte, historyType, ticker string,
 
 	count := 0
 	for idx := len(tokenInfoHistory) - start - 1; idx >= 0; idx-- {
-		history := tokenInfoHistory[idx]
-
 		if count >= size {
 			break
 		}
 		count += 1
 
-		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), constant.GlobalNetParams)
+		historyIdx := tokenInfoHistory[idx]
+		buf := model.GSwap.HistoryData[historyIdx]
+		history := &swapModel.BRC20History{}
+		history.Unmarshal(buf)
+
+		addressFrom, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptFrom), conf.GlobalNetParams)
 		if err != nil {
 			addressFrom = hex.EncodeToString([]byte(history.PkScriptFrom))
 		}
 
-		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), constant.GlobalNetParams)
+		addressTo, err := brc20Utils.GetAddressFromScript([]byte(history.PkScriptTo), conf.GlobalNetParams)
 		if err != nil {
 			addressTo = hex.EncodeToString([]byte(history.PkScriptTo))
 		}
@@ -817,7 +842,7 @@ func GetBRC20TickerInfoByAddress(pkScript []byte, ticker string) (nftRsp *model.
 
 	validTransfer := make([]*brc20Model.InscriptionBRC20TickInfo, 0)
 	validTransferResp := make([]*brc20Model.InscriptionBRC20TickInfoResp, 0)
-	historyInscriptions := make([]*brc20Model.InscriptionBRC20TickInfoResp, 0)
+	historyInscriptions := make([]brc20Model.InscriptionBRC20TickInfoResp, 0)
 	nftRsp = &model.BRC20TickerStatusInfoOfAddressResp{
 		Ticker:              ticker,
 		OverallBalance:      "0",
@@ -861,15 +886,19 @@ func GetBRC20TickerInfoByAddress(pkScript []byte, ticker string) (nftRsp *model.
 			Height:            tr.Height,
 			Data:              tr.Data,
 			InscriptionNumber: tr.InscriptionNumber,
-			InscriptionId:     fmt.Sprintf("%si%d", utils.GetReversedStringHex(tr.TxId), tr.Idx),
+			InscriptionId:     tr.GetInscriptionId(),
 			Satoshi:           tr.Satoshi,
 		})
 	}
 
-	var tokenInfoHistory []*brc20Model.BRC20History = tokenInfo.History
+	var tokenInfoHistory []uint32 = tokenInfo.History
 	count := 0
 	for idx := len(tokenInfoHistory) - 1; idx >= 0; idx-- {
-		history := tokenInfoHistory[idx]
+		historyIdx := tokenInfoHistory[idx]
+		buf := model.GSwap.HistoryData[historyIdx]
+		history := &swapModel.BRC20History{}
+		history.Unmarshal(buf)
+
 		if !history.Valid {
 			continue
 		}

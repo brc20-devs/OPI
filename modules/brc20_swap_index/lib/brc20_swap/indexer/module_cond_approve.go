@@ -8,10 +8,11 @@ import (
 	"log"
 	"strings"
 
-	"brc20query/lib/brc20_swap/constant"
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
-	"brc20query/lib/brc20_swap/utils"
+	"github.com/unisat-wallet/libbrc20-indexer/conf"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func (g *BRC20ModuleIndexer) GetConditionalApproveInfoByKey(createIdxKey string) (
@@ -121,12 +122,12 @@ func (g *BRC20ModuleIndexer) ProcessConditionalApproveEvents(events []*model.Con
 		inscriptionId := event.FromData.GetInscriptionId()
 
 		// from address
-		addressFrom, err := utils.GetAddressFromScript([]byte(event.From), constant.GlobalNetParams)
+		addressFrom, err := utils.GetAddressFromScript([]byte(event.From), conf.GlobalNetParams)
 		if err != nil {
 			addressFrom = hex.EncodeToString([]byte(event.From))
 		}
 		// to address
-		addressTo, err := utils.GetAddressFromScript([]byte(event.To), constant.GlobalNetParams)
+		addressTo, err := utils.GetAddressFromScript([]byte(event.To), conf.GlobalNetParams)
 		if err != nil {
 			addressTo = hex.EncodeToString([]byte(event.From))
 		}
@@ -195,7 +196,7 @@ func (g *BRC20ModuleIndexer) ProcessConditionalApproveEvents(events []*model.Con
 		fromTokenBalance.CondApproveableBalance = fromTokenBalance.CondApproveableBalance.Sub(event.Amount)
 		// delete(fromTokenBalance.ValidConditionalApproveMap, data.CreateIdxKey)
 
-		fromTokenBalance.UpdateHeight = g.CurrentHeight
+		fromTokenBalance.UpdateHeight = g.BestHeight
 
 		// fixme: history.Data
 		fromHistory := model.NewBRC20ModuleHistory(true, constant.BRC20_HISTORY_SWAP_TYPE_N_APPROVE_FROM, &event.FromData, &event.ToData, nil, true)
@@ -207,7 +208,7 @@ func (g *BRC20ModuleIndexer) ProcessConditionalApproveEvents(events []*model.Con
 		}
 		tokenBalance.SwapAccountBalance = tokenBalance.SwapAccountBalance.Add(event.Amount)
 
-		tokenBalance.UpdateHeight = g.CurrentHeight
+		tokenBalance.UpdateHeight = g.BestHeight
 
 		// fixme: history.Data
 		toHistory := model.NewBRC20ModuleHistory(true, constant.BRC20_HISTORY_SWAP_TYPE_N_APPROVE_TO, &event.FromData, &event.ToData, nil, true)
@@ -223,13 +224,17 @@ func (g *BRC20ModuleIndexer) ProcessConditionalApproveEvents(events []*model.Con
 	}
 
 	for _, event := range events {
-		event.ApproveInfo.UpdateHeight = g.CurrentHeight
+		event.ApproveInfo.UpdateHeight = g.BestHeight
 		event.ApproveInfo.Balance = event.Balance
 	}
 	return nil
 }
 
 func (g *BRC20ModuleIndexer) ProcessInscribeConditionalApprove(data *model.InscriptionBRC20Data) error {
+	if data.Height >= conf.ENABLE_SWAP_WITHDRAW_HEIGHT {
+		return errors.New("invalid operation")
+	}
+
 	var body model.InscriptionBRC20ModuleSwapApproveContent
 	if err := json.Unmarshal(data.ContentBody, &body); err != nil {
 		log.Printf("parse approve json failed. txid: %s",
@@ -274,7 +279,7 @@ func (g *BRC20ModuleIndexer) ProcessInscribeConditionalApprove(data *model.Inscr
 	condApproveInfo := &model.InscriptionBRC20SwapConditionalApproveInfo{
 		Data: data,
 	}
-	condApproveInfo.UpdateHeight = g.CurrentHeight
+	condApproveInfo.UpdateHeight = g.BestHeight
 
 	condApproveInfo.Module = body.Module
 	condApproveInfo.Tick = tokenInfo.Ticker
@@ -309,7 +314,7 @@ func (g *BRC20ModuleIndexer) ProcessInscribeConditionalApprove(data *model.Inscr
 		}
 		moduleTokenBalance.ValidConditionalApproveMap[data.CreateIdxKey] = data
 
-		moduleTokenBalance.UpdateHeight = g.CurrentHeight
+		moduleTokenBalance.UpdateHeight = g.BestHeight
 
 		// Update global approve lookup table
 		g.InscriptionsValidConditionalApproveMap[data.CreateIdxKey] = condApproveInfo

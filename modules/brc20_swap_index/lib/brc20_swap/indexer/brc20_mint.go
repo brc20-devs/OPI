@@ -3,12 +3,12 @@ package indexer
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"brc20query/lib/brc20_swap/constant"
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error {
@@ -18,17 +18,22 @@ func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error
 	}
 
 	// check tick
-	if len(body.BRC20Tick) != 4 {
+	uniqueLowerTicker, err := utils.GetValidUniqueLowerTickerTicker(body.BRC20Tick)
+	if err != nil {
 		return nil
-		// return errors.New("mint, tick length not 4")
+		// return errors.New("mint, tick length not 4 or 5")
 	}
-	uniqueLowerTicker := strings.ToLower(body.BRC20Tick)
 	tokenInfo, ok := g.InscriptionsTickerInfoMap[uniqueLowerTicker]
 	if !ok {
 		return nil
 		// return errors.New(fmt.Sprintf("mint %s, but tick not exist", body.BRC20Tick))
 	}
 	tinfo := tokenInfo.Deploy
+	if tinfo.SelfMint {
+		if utils.DecodeInscriptionFromBin(data.Parent) != tinfo.GetInscriptionId() {
+			return errors.New(fmt.Sprintf("self mint %s, but parent invalid", body.BRC20Tick))
+		}
+	}
 
 	// check mint amount
 	amt, err := decimal.NewDecimalFromString(body.BRC20Amount, int(tinfo.Decimal))
@@ -40,24 +45,7 @@ func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error
 	}
 
 	// get user's tokens to update
-	var userTokens map[string]*model.BRC20TokenBalance
-	if tokens, ok := g.UserTokensBalanceData[string(data.PkScript)]; !ok {
-		userTokens = make(map[string]*model.BRC20TokenBalance, 0)
-		g.UserTokensBalanceData[string(data.PkScript)] = userTokens
-	} else {
-		userTokens = tokens
-	}
-	// get tokenBalance to update
-	var tokenBalance *model.BRC20TokenBalance
-	if token, ok := userTokens[uniqueLowerTicker]; !ok {
-		tokenBalance = &model.BRC20TokenBalance{Ticker: tokenInfo.Ticker, PkScript: data.PkScript}
-		userTokens[uniqueLowerTicker] = tokenBalance
-	} else {
-		tokenBalance = token
-	}
-	// init token's users
-	tokenUsers := g.TokenUsersBalanceData[uniqueLowerTicker]
-	tokenUsers[string(data.PkScript)] = tokenBalance
+	tokenBalance := g.GetUserTokenBalance(tokenInfo.Ticker, string(data.PkScript))
 
 	body.BRC20Tick = tokenInfo.Ticker
 	mintInfo := model.NewInscriptionBRC20TickInfo(body.BRC20Tick, body.Operation, data)
@@ -67,11 +55,15 @@ func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error
 	mintInfo.Amount = amt
 	if tinfo.TotalMinted.Cmp(tinfo.Max) >= 0 {
 		// invalid history
-		// history := model.NewBRC20History(body.BRC20Tick, constant.BRC20_HISTORY_TYPE_N_INSCRIBE_MINT, false, false, mintInfo, tokenBalance, data)
-		// tokenBalance.History = append(tokenBalance.History, history)
-		// tokenBalance.HistoryMint = append(tokenBalance.HistoryMint, history)
-		// tokenInfo.History = append(tokenInfo.History, history)
-		// tokenInfo.HistoryMint = append(tokenInfo.HistoryMint, history)
+		if g.EnableHistory {
+			historyObj := model.NewBRC20History(constant.BRC20_HISTORY_TYPE_N_INSCRIBE_MINT, false, false, mintInfo, tokenBalance, data)
+			history := g.UpdateHistoryHeightAndGetHistoryIndex(historyObj)
+
+			tokenBalance.History = append(tokenBalance.History, history)
+			tokenBalance.HistoryMint = append(tokenBalance.HistoryMint, history)
+			tokenInfo.History = append(tokenInfo.History, history)
+			tokenInfo.HistoryMint = append(tokenInfo.HistoryMint, history)
+		}
 		return errors.New(fmt.Sprintf("mint %s, but mint out", body.BRC20Tick))
 	}
 
@@ -117,19 +109,27 @@ func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error
 	}
 	tokenBalance.AvailableBalance = tokenBalance.AvailableBalance.Add(balanceMinted)
 
-	// history
-	history := model.NewBRC20History(body.BRC20Tick, constant.BRC20_HISTORY_TYPE_N_INSCRIBE_MINT, true, false, mintInfo, tokenBalance, data)
-	// tick history
-	// tokenBalance.History = append(tokenBalance.History, history)
-	// tokenBalance.HistoryMint = append(tokenBalance.HistoryMint, history)
-	// tokenInfo.History = append(tokenInfo.History, history)
-	// tokenInfo.HistoryMint = append(tokenInfo.HistoryMint, history)
-	// user address
-	// userHistory := g.GetBRC20HistoryByUser(string(data.PkScript))
-	// userHistory.History = append(userHistory.History, history)
-	// all history
-	g.AllHistory = append(g.AllHistory, history)
+	// burn
+	if len(data.PkScript) == 1 && data.PkScript[0] == 0x6a {
+		tinfo.Burned = tinfo.Burned.Add(balanceMinted)
+	}
 
+	if g.EnableHistory {
+		// history
+		historyObj := model.NewBRC20History(constant.BRC20_HISTORY_TYPE_N_INSCRIBE_MINT, true, false, mintInfo, tokenBalance, data)
+		history := g.UpdateHistoryHeightAndGetHistoryIndex(historyObj)
+
+		// tick history
+		tokenBalance.History = append(tokenBalance.History, history)
+		tokenBalance.HistoryMint = append(tokenBalance.HistoryMint, history)
+		tokenInfo.History = append(tokenInfo.History, history)
+		tokenInfo.HistoryMint = append(tokenInfo.HistoryMint, history)
+		// user address
+		userHistory := g.GetBRC20HistoryByUser(string(data.PkScript))
+		userHistory.History = append(userHistory.History, history)
+		// all history
+		g.AllHistory = append(g.AllHistory, history)
+	}
 	// g.InscriptionsValidBRC20DataMap[data.CreateIdxKey] = mintInfo.Data
 	return nil
 }

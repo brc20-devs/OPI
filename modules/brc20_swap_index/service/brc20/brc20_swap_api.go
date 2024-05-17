@@ -1,10 +1,6 @@
 package brc20
 
 import (
-	"brc20query/lib/brc20_swap/constant"
-	swapIndexer "brc20query/lib/brc20_swap/indexer"
-	swapModel "brc20query/lib/brc20_swap/model"
-	swapUtils "brc20query/lib/brc20_swap/utils"
 	"brc20query/lib/utils"
 	"brc20query/logger"
 	"brc20query/model"
@@ -12,6 +8,11 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/unisat-wallet/libbrc20-indexer/conf"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	swapIndexer "github.com/unisat-wallet/libbrc20-indexer/indexer"
+	swapModel "github.com/unisat-wallet/libbrc20-indexer/model"
+	swapUtils "github.com/unisat-wallet/libbrc20-indexer/utils"
 	"go.uber.org/zap"
 )
 
@@ -78,12 +79,12 @@ func GetBRC20ModuleHistory(historyType, module string, startHeight, endHeight, s
 		}
 		count += 1
 
-		addressFrom, err := swapUtils.GetAddressFromScript([]byte(history.PkScriptFrom), constant.GlobalNetParams)
+		addressFrom, err := swapUtils.GetAddressFromScript([]byte(history.PkScriptFrom), conf.GlobalNetParams)
 		if err != nil {
 			addressFrom = hex.EncodeToString([]byte(history.PkScriptFrom))
 		}
 
-		addressTo, err := swapUtils.GetAddressFromScript([]byte(history.PkScriptTo), constant.GlobalNetParams)
+		addressTo, err := swapUtils.GetAddressFromScript([]byte(history.PkScriptTo), conf.GlobalNetParams)
 		if err != nil {
 			addressTo = hex.EncodeToString([]byte(history.PkScriptTo))
 		}

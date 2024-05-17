@@ -1,13 +1,14 @@
 package brc20
 
 import (
-	brc20swapIndexer "brc20query/lib/brc20_swap/indexer"
-	brc20swapLoader "brc20query/lib/brc20_swap/loader"
-	brc20swapModel "brc20query/lib/brc20_swap/model"
 	"brc20query/model"
 	"fmt"
 	"log"
 	"os"
+
+	brc20swapIndexer "github.com/unisat-wallet/libbrc20-indexer/indexer"
+	brc20swapLoader "github.com/unisat-wallet/libbrc20-indexer/loader"
+	brc20swapModel "github.com/unisat-wallet/libbrc20-indexer/model"
 )
 
 var (
@@ -21,7 +22,7 @@ var (
 // ProcessUpdateLatestBRC20SwapInit
 func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	brc20DatasLoad := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
-	brc20DatasDump := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
+	brc20DatasDump := make(chan interface{}, 10240)
 	brc20DatasParse := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 
 	inputFileName := "./data/log_file.txt"
@@ -68,9 +69,15 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	lastHeight := uint32(startHeight)
 	for data := range brc20DatasParse {
 		if len(brc20DatasPerHeight) > 0 && lastHeight != data.Height {
+			brc20DatasPerHeightChan := make(chan interface{}, 10240)
+			go func() {
+				for _, data := range brc20DatasPerHeight {
+					brc20DatasPerHeightChan <- data
+				}
+				close(brc20DatasPerHeightChan)
+			}()
 
-			g.CurrentHeight = lastHeight
-			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeight, len(brc20DatasPerHeight))
+			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeightChan, nil)
 			if g.Durty {
 				log.Printf("height: %d, saving database...", lastHeight)
 				g.SaveDataToDB(psqlInfo, lastHeight)
@@ -97,6 +104,7 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 
 	log.Printf("dumping output...")
 	brc20swapLoader.DumpTickerInfoMap("./data/brc20.output.txt",
+		g.HistoryData,
 		g.InscriptionsTickerInfoMap,
 		g.UserTokensBalanceData,
 		g.TokenUsersBalanceData,

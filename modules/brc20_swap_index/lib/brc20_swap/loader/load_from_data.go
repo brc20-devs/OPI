@@ -1,14 +1,15 @@
 package loader
 
 import (
-	"brc20query/lib/brc20_swap/model"
-	"brc20query/lib/brc20_swap/utils"
 	"bufio"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func GetBRC20InputDataLineCount(fname string) (int, error) {
@@ -35,7 +36,7 @@ func GetBRC20InputDataLineCount(fname string) (int, error) {
 	return count, nil
 }
 
-func LoadBRC20InputData(fname string, brc20Datas chan *model.InscriptionBRC20Data, endHeight int) error {
+func LoadBRC20InputData(fname string, brc20Datas chan interface{}) error {
 	file, err := os.Open(fname)
 	if err != nil {
 		return err
@@ -130,10 +131,6 @@ func LoadBRC20InputData(fname string, brc20Datas chan *model.InscriptionBRC20Dat
 			return err
 		}
 		data.BlockTime = uint32(blockTime)
-
-		if int(height) > endHeight {
-			break
-		}
 
 		brc20Datas <- &data
 	}

@@ -6,9 +6,9 @@ import (
 	"errors"
 	"log"
 
-	"brc20query/lib/brc20_swap/constant"
-	"brc20query/lib/brc20_swap/model"
-	"brc20query/lib/brc20_swap/utils"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func (g *BRC20ModuleIndexer) GetCommitInfoByKey(createIdxKey string) (

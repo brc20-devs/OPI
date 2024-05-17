@@ -1,14 +1,13 @@
 package brc20_swap
 
 import (
-	"brc20query/lib/brc20_swap/constant"
-	"brc20query/lib/brc20_swap/event"
-	"brc20query/lib/brc20_swap/indexer"
-	"brc20query/lib/brc20_swap/loader"
-	"brc20query/lib/brc20_swap/model"
 	"testing"
 
 	"github.com/btcsuite/btcd/chaincfg"
+	"github.com/unisat-wallet/libbrc20-indexer/conf"
+	"github.com/unisat-wallet/libbrc20-indexer/event"
+	"github.com/unisat-wallet/libbrc20-indexer/indexer"
+	"github.com/unisat-wallet/libbrc20-indexer/loader"
 )
 
 var LOAD_TESTNET = false
@@ -18,18 +17,18 @@ var LOAD_EVENTS = true
 func TestBRC20Swap(t *testing.T) {
 
 	if LOAD_TESTNET {
-		constant.GlobalNetParams = &chaincfg.TestNet3Params
-		constant.TICKS_ENABLED = "sats ordi trac oshi btcs oxbt texo cncl meme honk zbit vmpx pepe mxrc   doge eyee"
+		conf.GlobalNetParams = &chaincfg.TestNet3Params
+		conf.TICKS_ENABLED = "sats ordi trac oshi btcs oxbt texo cncl meme honk zbit vmpx pepe mxrc   doge eyee"
 
-		constant.TICKS_ENABLED = "sats ordi trac oshi btcs oxbt texo cncl meme honk zbit vmpx pepe mxrc   doge eyee test 💰 your domo"
+		conf.TICKS_ENABLED = "sats ordi trac oshi btcs oxbt texo cncl meme honk zbit vmpx pepe mxrc   doge eyee test 💰 your domo"
 
-		constant.TICKS_ENABLED = ""
-		indexer.MODULE_SWAP_SOURCE_INSCRIPTION_ID = "eabfbf7cba3509134582c2216709527ddde716d3be96beababc16c8f28d5fd31i0"
+		conf.TICKS_ENABLED = ""
+		conf.MODULE_SWAP_SOURCE_INSCRIPTION_ID = "eabfbf7cba3509134582c2216709527ddde716d3be96beababc16c8f28d5fd31i0"
 	} else {
 		// mainnet
-		constant.GlobalNetParams = &chaincfg.MainNetParams
-		constant.TICKS_ENABLED = "sats ordi trac oshi btcs oxbt texo cncl meme honk zbit vmpx pepe mxrc   doge eyee"
-		indexer.MODULE_SWAP_SOURCE_INSCRIPTION_ID = "93ce120ff87364c261a534fea4c39196a615f449412fb3547a185d92306a39b8i0"
+		conf.GlobalNetParams = &chaincfg.MainNetParams
+		conf.TICKS_ENABLED = "sats ordi trac oshi btcs oxbt texo cncl meme honk zbit vmpx pepe mxrc   doge eyee"
+		conf.MODULE_SWAP_SOURCE_INSCRIPTION_ID = "93ce120ff87364c261a534fea4c39196a615f449412fb3547a185d92306a39b8i0"
 	}
 
 	// brc20Datas, err := loader.LoadBRC20InputJsonData("./data/brc20swap.input.conf")
@@ -42,40 +41,46 @@ func TestBRC20Swap(t *testing.T) {
 	// 	t.Logf("load json failed: %s", err)
 	// }
 
-	brc20Datas := make([]*model.InscriptionBRC20Data, 0)
+	brc20Datas := make(chan interface{}, 0)
 
 	var err error
 	if LOAD_EVENTS {
-		constant.DEBUG = true
+		conf.DEBUG = true
 
 		t.Logf("start loading event")
 		if datas, err := event.InitTickDataFromFile("./data/brc20swap.ticks.json"); err != nil {
 			t.Logf("load tick json failed: %s", err)
 			return
 		} else {
-			brc20Datas = append(brc20Datas, datas...)
+			for _, d := range datas {
+				brc20Datas <- d
+			}
+			close(brc20Datas)
 		}
 		if datas, err := event.GenerateBRC20InputDataFromEvents("./data/brc20swap.events.json"); err != nil {
 			t.Logf("load event json failed: %s", err)
 			return
 		} else {
-			brc20Datas = append(brc20Datas, datas...)
+			for _, d := range datas {
+				brc20Datas <- d
+			}
+			close(brc20Datas)
 		}
 		loader.DumpBRC20InputData("./data/brc20swap.events.input.txt", brc20Datas, false)
 
 	} else {
 		t.Logf("start loading data")
 
-		if brc20Datas, err = loader.LoadBRC20InputData("./data/brc20swap.input.txt"); err != nil {
+		if err = loader.LoadBRC20InputData("./data/brc20swap.input.txt", brc20Datas); err != nil {
 			t.Logf("load json failed: %s", err)
 		}
 
 	}
 	t.Logf("start init")
-	brc20DatasSplit := len(brc20Datas) - 0
 
 	g := &indexer.BRC20ModuleIndexer{}
-	g.ProcessUpdateLatestBRC20Init(brc20Datas[0:brc20DatasSplit])
+	g.Init()
+	g.ProcessUpdateLatestBRC20Loop(brc20Datas, nil)
 
 	// next half
 	t.Logf("start deep copy")
@@ -83,10 +88,11 @@ func TestBRC20Swap(t *testing.T) {
 	newg := g
 
 	t.Logf("start process")
-	newg.ProcessUpdateLatestBRC20Loop(brc20Datas[brc20DatasSplit:])
+	newg.ProcessUpdateLatestBRC20Loop(nil, nil)
 
 	t.Logf("dump swap")
 	loader.DumpTickerInfoMap("./data/brc20swap.output.txt",
+		newg.HistoryData,
 		newg.InscriptionsTickerInfoMap,
 		newg.UserTokensBalanceData,
 		newg.TokenUsersBalanceData,

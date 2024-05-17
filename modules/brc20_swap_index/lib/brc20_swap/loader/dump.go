@@ -8,31 +8,31 @@ import (
 	"sort"
 	"strings"
 
-	"brc20query/lib/brc20_swap/constant"
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
-	"brc20query/lib/brc20_swap/utils"
-	"brc20query/logger"
-
-	"go.uber.org/zap"
+	"github.com/unisat-wallet/libbrc20-indexer/conf"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
-func DumpBRC20InputData(fname string, brc20Datas chan *model.InscriptionBRC20Data, hexBody bool) {
+func DumpBRC20InputData(fname string, brc20Datas chan interface{}, hexBody bool) {
 	file, err := os.OpenFile(fname, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
-		logger.Log.Error("open block index file failed", zap.Error(err))
+		log.Fatalf("open block index file failed, %s", err)
 		return
 	}
 	defer file.Close()
 
-	for data := range brc20Datas {
+	for dataIn := range brc20Datas {
+		data := dataIn.(*model.InscriptionBRC20Data)
+
 		var body, address string
 		if hexBody {
 			body = hex.EncodeToString(data.ContentBody)
 			address = hex.EncodeToString([]byte(data.PkScript))
 		} else {
 			body = strings.ReplaceAll(string(data.ContentBody), "\n", " ")
-			address, err = utils.GetAddressFromScript([]byte(data.PkScript), constant.GlobalNetParams)
+			address, err = utils.GetAddressFromScript([]byte(data.PkScript), conf.GlobalNetParams)
 			if err != nil {
 				address = hex.EncodeToString([]byte(data.PkScript))
 			}
@@ -57,6 +57,7 @@ func DumpBRC20InputData(fname string, brc20Datas chan *model.InscriptionBRC20Dat
 }
 
 func DumpTickerInfoMap(fname string,
+	historyData [][]byte,
 	inscriptionsTickerInfoMap map[string]*model.BRC20TokenInfo,
 	userTokensBalanceData map[string]map[string]*model.BRC20TokenBalance,
 	tokenUsersBalanceData map[string]map[string]*model.BRC20TokenBalance,
@@ -80,7 +81,11 @@ func DumpTickerInfoMap(fname string,
 	for _, ticker := range allTickers {
 		info := inscriptionsTickerInfoMap[ticker]
 		nValid := 0
-		for _, h := range info.History {
+		for _, hIdx := range info.History {
+			buf := historyData[hIdx]
+			h := &model.BRC20History{}
+			h.Unmarshal(buf)
+
 			if h.Valid {
 				nValid++
 			}
@@ -95,17 +100,21 @@ func DumpTickerInfoMap(fname string,
 		)
 
 		// history
-		for _, h := range info.History {
+		for _, hIdx := range info.History {
+			buf := historyData[hIdx]
+			h := &model.BRC20History{}
+			h.Unmarshal(buf)
+
 			if !h.Valid {
 				continue
 			}
 
-			addressFrom, err := utils.GetAddressFromScript([]byte(h.PkScriptFrom), constant.GlobalNetParams)
+			addressFrom, err := utils.GetAddressFromScript([]byte(h.PkScriptFrom), conf.GlobalNetParams)
 			if err != nil {
 				addressFrom = hex.EncodeToString([]byte(h.PkScriptFrom))
 			}
 
-			addressTo, err := utils.GetAddressFromScript([]byte(h.PkScriptTo), constant.GlobalNetParams)
+			addressTo, err := utils.GetAddressFromScript([]byte(h.PkScriptTo), conf.GlobalNetParams)
 			if err != nil {
 				addressTo = hex.EncodeToString([]byte(h.PkScriptTo))
 			}
@@ -134,7 +143,7 @@ func DumpTickerInfoMap(fname string,
 		for _, holder := range allHoldersPkScript {
 			balanceData := tokenUsersBalanceData[ticker][holder]
 
-			address, err := utils.GetAddressFromScript([]byte(balanceData.PkScript), constant.GlobalNetParams)
+			address, err := utils.GetAddressFromScript([]byte(balanceData.PkScript), conf.GlobalNetParams)
 			if err != nil {
 				address = hex.EncodeToString([]byte(balanceData.PkScript))
 			}
@@ -143,7 +152,7 @@ func DumpTickerInfoMap(fname string,
 				address,
 				len(balanceData.History),
 				len(balanceData.ValidTransferMap),
-				balanceData.AvailableBalance.Add(balanceData.TransferableBalance).String(),
+				balanceData.OverallBalance().String(),
 				len(userTokensBalanceData[holder]),
 			)
 		}
@@ -151,7 +160,8 @@ func DumpTickerInfoMap(fname string,
 }
 
 func DumpModuleInfoMap(fname string,
-	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
+	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo,
+) {
 	file, err := os.OpenFile(fname, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0777)
 	if err != nil {
 		log.Fatalf("open module dump file failed, %s", err)
@@ -196,7 +206,8 @@ func DumpModuleInfoMap(fname string,
 }
 
 func DumpModuleTickInfoMap(file *os.File, condStateBalanceDataMap map[string]*model.BRC20ModuleConditionalApproveStateBalance,
-	inscriptionsTickerInfoMap, userTokensBalanceData map[string]map[string]*model.BRC20ModuleTokenBalance) {
+	inscriptionsTickerInfoMap, userTokensBalanceData map[string]map[string]*model.BRC20ModuleTokenBalance,
+) {
 
 	var allTickers []string
 	for ticker := range inscriptionsTickerInfoMap {
@@ -238,7 +249,7 @@ func DumpModuleTickInfoMap(file *os.File, condStateBalanceDataMap map[string]*mo
 		for _, holder := range allHoldersPkScript {
 			balanceData := holdersMap[holder]
 
-			address, err := utils.GetAddressFromScript([]byte(balanceData.PkScript), constant.GlobalNetParams)
+			address, err := utils.GetAddressFromScript([]byte(balanceData.PkScript), conf.GlobalNetParams)
 			if err != nil {
 				address = hex.EncodeToString([]byte(balanceData.PkScript))
 			}
@@ -329,7 +340,7 @@ func DumpModuleSwapInfoMap(file *os.File,
 		for _, holder := range allHoldersPkScript {
 			balanceData := holdersMap[holder]
 
-			address, err := utils.GetAddressFromScript([]byte(holder), constant.GlobalNetParams)
+			address, err := utils.GetAddressFromScript([]byte(holder), conf.GlobalNetParams)
 			if err != nil {
 				address = hex.EncodeToString([]byte(holder))
 			}

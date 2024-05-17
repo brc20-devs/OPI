@@ -8,10 +8,10 @@ import (
 	"log"
 	"strings"
 
-	"brc20query/lib/brc20_swap/constant"
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
-	"brc20query/lib/brc20_swap/utils"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func (g *BRC20ModuleIndexer) GetApproveInfoByKey(createIdxKey string) (
@@ -65,7 +65,7 @@ func (g *BRC20ModuleIndexer) ProcessApprove(data *model.InscriptionBRC20Data, ap
 		return errors.New("approve, send from ticker missing")
 	}
 
-	// Cross-check to approve whether the inscription exists.
+	// Cross-check whether the approve-inscription exists.
 	if _, ok := fromTokenBalance.ValidApproveMap[data.CreateIdxKey]; !ok {
 		log.Printf("ProcessBRC20Approve send from approve missing(dup approve?). height: %d, txidx: %d",
 			data.Height,
@@ -99,7 +99,7 @@ func (g *BRC20ModuleIndexer) ProcessApprove(data *model.InscriptionBRC20Data, ap
 	tokenBalance := moduleInfo.GetUserTokenBalance(approveInfo.Tick, receiverPkScript)
 
 	// set from
-	fromTokenBalance.UpdateHeight = g.CurrentHeight
+	fromTokenBalance.UpdateHeight = g.BestHeight
 
 	fromTokenBalance.ApproveableBalance = fromTokenBalance.ApproveableBalance.Sub(approveInfo.Amount)
 	delete(fromTokenBalance.ValidApproveMap, data.CreateIdxKey)
@@ -108,7 +108,7 @@ func (g *BRC20ModuleIndexer) ProcessApprove(data *model.InscriptionBRC20Data, ap
 	fromTokenBalance.History = append(fromTokenBalance.History, fromHistory)
 
 	// set to
-	tokenBalance.UpdateHeight = g.CurrentHeight
+	tokenBalance.UpdateHeight = g.BestHeight
 	if data.BlockTime > 0 {
 		tokenBalance.SwapAccountBalanceSafe = tokenBalance.SwapAccountBalanceSafe.Add(approveInfo.Amount)
 	}
@@ -197,7 +197,7 @@ func (g *BRC20ModuleIndexer) ProcessInscribeApprove(data *model.InscriptionBRC20
 		}
 		moduleTokenBalance.ValidApproveMap[data.CreateIdxKey] = data
 
-		moduleTokenBalance.UpdateHeight = g.CurrentHeight
+		moduleTokenBalance.UpdateHeight = g.BestHeight
 		// Update global approve lookup table
 		g.InscriptionsValidApproveMap[data.CreateIdxKey] = approveInfo
 

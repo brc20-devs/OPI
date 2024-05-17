@@ -5,7 +5,7 @@ import (
 	"log"
 	"strings"
 
-	"brc20query/lib/brc20_swap/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
 )
 
 // decode data
@@ -97,7 +97,6 @@ type InscriptionBRC20ModuleSwapCommitContent struct {
 	Module    string `json:"module,omitempty"`
 
 	Parent   string              `json:"parent,omitempty"`
-	Quit     string              `json:"quit,omitempty"`
 	GasPrice string              `json:"gas_price,omitempty"`
 	Data     []*SwapFunctionData `json:"data,omitempty"`
 }
@@ -269,12 +268,12 @@ func (m *BRC20ModuleSwapInfo) DeepCopy() (copy *BRC20ModuleSwapInfo) {
 		TokenUsersBalanceDataMap: make(map[string]map[string]*BRC20ModuleTokenBalance, 0),
 
 		// swap
-		// lp token of users in module [address][pair]balance
-		UsersLPTokenBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
-
 		// lp token balance of address in module [pair][address]balance
 		LPTokenUsersBalanceMap:        make(map[string]map[string]*decimal.Decimal, 0),
 		LPTokenUsersBalanceUpdatedMap: make(map[string]struct{}, 0),
+
+		// lp token of users in module [address][pair]balance
+		UsersLPTokenBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
 
 		// swap total balance
 		// total balance of pool in module [pair]balanceData
@@ -381,12 +380,12 @@ func (m *BRC20ModuleSwapInfo) CherryPick(pickUsersPkScript, pickTokensTick, pick
 		TokenUsersBalanceDataMap: make(map[string]map[string]*BRC20ModuleTokenBalance, 0),
 
 		// swap
-		// lp token of users in module [address][pair]balance
-		UsersLPTokenBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
-
 		// lp token balance of address in module [pair][address]balance
 		LPTokenUsersBalanceMap:        make(map[string]map[string]*decimal.Decimal, 0),
 		LPTokenUsersBalanceUpdatedMap: make(map[string]struct{}, 0),
+
+		// lp token of users in module [address][pair]balance
+		UsersLPTokenBalanceMap: make(map[string]map[string]*decimal.Decimal, 0),
 
 		// swap total balance
 		// total balance of pool in module [pair]balanceData
@@ -473,7 +472,7 @@ func (moduleInfo *BRC20ModuleSwapInfo) GetUserTokenBalance(ticker, userPkScript 
 		usersTokens[uniqueLowerTicker] = tokenBalance
 	} else {
 		tokenBalance = tb
-		return tokenBalance
+		return tokenBalance // fixme: may missing tokenUsers
 	}
 
 	// set token's users

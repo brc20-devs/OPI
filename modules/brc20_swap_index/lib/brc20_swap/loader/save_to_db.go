@@ -1,12 +1,12 @@
 package loader
 
 import (
-	"brc20query/lib/brc20_swap/model"
 	"database/sql"
 	"fmt"
 	"log"
 
 	_ "github.com/lib/pq"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
 )
 
 var SwapDB *sql.DB
@@ -128,7 +128,7 @@ INSERT INTO brc20_history(block_height, tick,
 		}
 
 		{
-			res, err := stmtBRC20History.Exec(height, h.Tick,
+			res, err := stmtBRC20History.Exec(height, h.Inscription.Data.BRC20Tick,
 				h.Type, h.Valid,
 				h.TxId, h.Idx, h.Vout, h.Satoshi, h.Offset,
 				h.PkScriptFrom, h.PkScriptTo,

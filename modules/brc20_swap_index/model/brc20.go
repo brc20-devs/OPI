@@ -1,8 +1,8 @@
 package model
 
 import (
-	brc20swapIndexer "brc20query/lib/brc20_swap/indexer"
-	brc20Model "brc20query/lib/brc20_swap/model"
+	brc20swapIndexer "github.com/unisat-wallet/libbrc20-indexer/indexer"
+	brc20Model "github.com/unisat-wallet/libbrc20-indexer/model"
 )
 
 var (
@@ -15,6 +15,7 @@ var (
 	GSwapBase *brc20swapIndexer.BRC20ModuleIndexer
 )
 
+// search
 type InscriptionBRC20TickInfoForSearch struct {
 	Data   brc20Model.InscriptionBRC20InfoResp
 	Max    uint64
@@ -24,9 +25,11 @@ type InscriptionBRC20TickInfoForSearch struct {
 
 // status
 type BRC20TickerStatusInfo struct {
-	Ticker       string `json:"ticker"`
-	HoldersCount int    `json:"holdersCount"`
-	HistoryCount int    `json:"historyCount"`
+	Ticker   string `json:"ticker"`
+	SelfMint bool   `json:"selfMint"`
+
+	HoldersCount int `json:"holdersCount"`
+	HistoryCount int `json:"historyCount"`
 
 	InscriptionNumber int64  `json:"inscriptionNumber"`
 	InscriptionId     string `json:"inscriptionId"`
@@ -42,7 +45,7 @@ type BRC20TickerStatusInfo struct {
 	MintTimes          uint32 `json:"mintTimes"`
 	Decimal            uint8  `json:"decimal"`
 
-	Address string `json:"creator"`
+	CreatorAddress string `json:"creator"`
 
 	TxIdHex         string `json:"txid"`
 	DeployHeight    uint32 `json:"deployHeight"`
@@ -157,7 +160,7 @@ type BRC20TickerStatusInfoOfAddressResp struct {
 	TransferableCount        int                                        `json:"transferableCount"`
 	TransferableInscriptions []*brc20Model.InscriptionBRC20TickInfoResp `json:"transferableInscriptions"`
 	HistoryCount             int                                        `json:"historyCount"`
-	HistoryInscriptions      []*brc20Model.InscriptionBRC20TickInfoResp `json:"historyInscriptions"`
+	HistoryInscriptions      []brc20Model.InscriptionBRC20TickInfoResp  `json:"historyInscriptions"`
 }
 
 // inscriptions

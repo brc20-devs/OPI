@@ -6,9 +6,11 @@ import (
 	"strconv"
 	"strings"
 
-	"brc20query/lib/brc20_swap/constant"
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
+	"github.com/unisat-wallet/libbrc20-indexer/conf"
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) error {
@@ -17,19 +19,30 @@ func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) err
 		return nil
 	}
 
-	// check tick/amt
-	if len(body.BRC20Tick) != 4 {
+	// check tick
+	uniqueLowerTicker, err := utils.GetValidUniqueLowerTickerTicker(body.BRC20Tick)
+	if err != nil {
 		return nil
-		// return errors.New("deploy, tick length not 4")
+		// return errors.New("deploy, tick length not 4 or 5")
 	}
-	uniqueLowerTicker := strings.ToLower(body.BRC20Tick)
 
-	// tick enable, fixme
-	if constant.TICKS_ENABLED != "" {
+	if len(body.BRC20Tick) == 5 {
+		if body.BRC20SelfMint != "true" {
+			return nil
+			// return errors.New("deploy, tick length 5, but not self_mint")
+		}
+		if data.Height < conf.ENABLE_SELF_MINT_HEIGHT {
+			return nil
+			// return errors.New("deploy, tick length 5, but not enabled")
+		}
+	}
+
+	// tick enable, fixme: test only, not support space in ticker
+	if conf.TICKS_ENABLED != "" {
 		if strings.Contains(uniqueLowerTicker, " ") {
 			return nil
 		}
-		if !strings.Contains(constant.TICKS_ENABLED, uniqueLowerTicker) {
+		if !strings.Contains(conf.TICKS_ENABLED, uniqueLowerTicker) {
 			return nil
 		}
 	}
@@ -52,6 +65,11 @@ func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) err
 	tinfo.Data.BRC20Minted = "0"
 	tinfo.InscriptionNumberStart = data.InscriptionNumber
 
+	if len(body.BRC20Tick) == 5 && body.BRC20SelfMint == "true" {
+		tinfo.SelfMint = true
+		tinfo.Data.BRC20SelfMint = "true"
+	}
+
 	// dec
 	if dec, err := strconv.ParseUint(tinfo.Data.BRC20Decimal, 10, 64); err != nil || dec > 18 {
 		// dec invalid
@@ -73,10 +91,20 @@ func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) err
 		)
 		return errors.New("deploy, but max invalid")
 	} else {
-		if max.Sign() <= 0 || max.IsOverflowUint64() {
-			return errors.New("deploy, but max invalid (range)")
+		if max.Sign() < 0 || max.IsOverflowUint64() {
+			return nil
+			// return errors.New("deploy, but max invalid (range)")
 		}
-		tinfo.Max = max
+
+		if max.Sign() == 0 {
+			if tinfo.SelfMint {
+				tinfo.Max = max.GetMaxUint64()
+			} else {
+				return errors.New("deploy, but max invalid (0)")
+			}
+		} else {
+			tinfo.Max = max
+		}
 	}
 
 	// lim
@@ -88,10 +116,18 @@ func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) err
 		)
 		return errors.New("deploy, but lim invalid")
 	} else {
-		if lim.Sign() <= 0 || lim.IsOverflowUint64() {
+		if lim.Sign() < 0 || lim.IsOverflowUint64() {
 			return errors.New("deploy, but lim invalid (range)")
 		}
-		tinfo.Limit = lim
+		if lim.Sign() == 0 {
+			if tinfo.SelfMint {
+				tinfo.Limit = lim.GetMaxUint64()
+			} else {
+				return errors.New("deploy, but lim invalid (0)")
+			}
+		} else {
+			tinfo.Limit = lim
+		}
 	}
 
 	tokenInfo := &model.BRC20TokenInfo{Ticker: body.BRC20Tick, Deploy: tinfo}
@@ -99,18 +135,22 @@ func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) err
 
 	tokenBalance := &model.BRC20TokenBalance{Ticker: body.BRC20Tick, PkScript: data.PkScript}
 
-	history := model.NewBRC20History(body.BRC20Tick, constant.BRC20_HISTORY_TYPE_N_INSCRIBE_DEPLOY, true, false, tinfo, nil, data)
-	// tokenBalance.History = append(tokenBalance.History, history)
-	// tokenInfo.History = append(tokenInfo.History, history)
+	if g.EnableHistory {
+		historyObj := model.NewBRC20History(constant.BRC20_HISTORY_TYPE_N_INSCRIBE_DEPLOY, true, false, tinfo, nil, data)
+		history := g.UpdateHistoryHeightAndGetHistoryIndex(historyObj)
+
+		tokenBalance.History = append(tokenBalance.History, history)
+		tokenInfo.History = append(tokenInfo.History, history)
+
+		// user history
+		userHistory := g.GetBRC20HistoryByUser(string(data.PkScript))
+		userHistory.History = append(userHistory.History, history)
+		// all history
+		g.AllHistory = append(g.AllHistory, history)
+	}
 
 	// mark update
 	tokenInfo.UpdateHeight = data.Height
-
-	// user history
-	// userHistory := g.GetBRC20HistoryByUser(string(data.PkScript))
-	// userHistory.History = append(userHistory.History, history)
-	// all history
-	g.AllHistory = append(g.AllHistory, history)
 
 	// init user tokens
 	var userTokens map[string]*model.BRC20TokenBalance
@@ -127,6 +167,6 @@ func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) err
 	tokenUsers[string(data.PkScript)] = tokenBalance
 	g.TokenUsersBalanceData[uniqueLowerTicker] = tokenUsers
 
-	// g.InscriptionsValidBRC20DataMap[data.CreateIdxKey] = tinfo.Data
+	g.InscriptionsValidBRC20DataMap[data.CreateIdxKey] = tinfo.Data
 	return nil
 }

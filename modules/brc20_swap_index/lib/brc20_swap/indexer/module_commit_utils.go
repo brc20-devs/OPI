@@ -11,10 +11,10 @@ import (
 	"log"
 	"strings"
 
-	"brc20query/lib/bip322"
-	"brc20query/lib/brc20_swap/decimal"
-	"brc20query/lib/brc20_swap/model"
-	"brc20query/lib/brc20_swap/utils"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
+	"github.com/unisat-wallet/libbrc20-indexer/utils/bip322"
 
 	"github.com/btcsuite/btcd/wire"
 )
@@ -135,13 +135,14 @@ func (g *BRC20ModuleIndexer) CheckTickVerifyBigInt(tick string, amtStr string) (
 }
 
 func GetLowerInnerPairNameByToken(token0, token1 string) (poolPair string) {
-	return utils.GetInnerSwapPoolNameByToken(token0, token1)
-}
-
-func GetLowerPairNameByToken(token0, token1 string) (poolPair string) {
 	token0 = strings.ToLower(token0)
 	token1 = strings.ToLower(token1)
-	poolPair = fmt.Sprintf("%s/%s", token0, token1)
+
+	if token0 > token1 {
+		poolPair = fmt.Sprintf("%s%s%s", string([]byte{uint8(len(token1))}), token1, token0)
+	} else {
+		poolPair = fmt.Sprintf("%s%s%s", string([]byte{uint8(len(token0))}), token0, token1)
+	}
 	return poolPair
 }
 
@@ -179,6 +180,7 @@ func GetEachItemLengthOfCommitJsonData(body []byte) (results []uint64, err error
 
 	for {
 		tok, err := decoder.Token()
+		// Return the next unprocessed token.
 		if err == io.EOF {
 			break
 		} else if err != nil {
@@ -188,12 +190,14 @@ func GetEachItemLengthOfCommitJsonData(body []byte) (results []uint64, err error
 		offset := decoder.InputOffset()
 
 		switch tok := tok.(type) {
+		// Based on the token type, appropriate processing is performed.
 		case json.Delim:
 
 			switch tok {
 			case '{':
 
 				if indentLevel == 2 && readyDataProcess && startDataProcess {
+					// Step 3: Record start offset at '{' character.
 					lastPos = uint64(offset)
 				}
 
@@ -204,6 +208,7 @@ func GetEachItemLengthOfCommitJsonData(body []byte) (results []uint64, err error
 			case '}':
 
 				if indentLevel == 3 && readyDataProcess && startDataProcess {
+					// Step 4: Record length at '}' character.
 					results = append(results, uint64(offset)-lastPos+1)
 				}
 
@@ -216,6 +221,7 @@ func GetEachItemLengthOfCommitJsonData(body []byte) (results []uint64, err error
 			case '[':
 
 				if indentLevel == 1 && readyDataProcess && !startDataProcess {
+					// Step 2: Start formally counting after '['.
 					results = nil
 					startDataProcess = true
 				}
@@ -227,6 +233,7 @@ func GetEachItemLengthOfCommitJsonData(body []byte) (results []uint64, err error
 			case ']':
 
 				if indentLevel == 2 && readyDataProcess && startDataProcess {
+					// Step 5: End the statistics after ']'.
 					readyDataProcess = false
 					startDataProcess = false
 				}
@@ -247,10 +254,12 @@ func GetEachItemLengthOfCommitJsonData(body []byte) (results []uint64, err error
 
 					if indentLevel == 1 {
 						if tok == "data" {
+							// Step 1: Mark the data start, and initialize the marker and result variables.
 							results = nil
 							readyDataProcess = true
 							startDataProcess = false
 						} else {
+							// Step 6: Mark complete.
 							readyDataProcess = false
 							startDataProcess = false
 						}

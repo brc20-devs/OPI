@@ -1,7 +1,6 @@
 package bip322
 
 import (
-	"brc20query/lib/utils"
 	"crypto/sha256"
 	"fmt"
 
@@ -9,6 +8,7 @@ import (
 	"github.com/btcsuite/btcd/chaincfg/chainhash"
 	"github.com/btcsuite/btcd/txscript"
 	"github.com/btcsuite/btcd/wire"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func GetSha256(data []byte) (hash []byte) {

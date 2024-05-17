@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/btcsuite/btcd/btcec/v2/schnorr"
+	"github.com/btcsuite/btcd/btcutil"
 	"github.com/btcsuite/btcd/chaincfg"
 	"github.com/btcsuite/btcd/txscript"
 )
@@ -20,6 +23,15 @@ func DecodeTokensFromSwapPair(tickPair string) (token0, token1 string, err error
 	token1 = tickPair[5:]
 
 	return token0, token1, nil
+}
+
+func GetValidUniqueLowerTickerTicker(ticker string) (lowerTicker string, err error) {
+	if len(ticker) != 4 && len(ticker) != 5 {
+		return "", errors.New("ticker len invalid")
+	}
+
+	lowerTicker = strings.ToLower(ticker)
+	return lowerTicker, nil
 }
 
 // single sha256 hash
@@ -41,6 +53,9 @@ func GetHash256(data []byte) (hash []byte) {
 }
 
 func HashString(data []byte) (res string) {
+	if len(data) != 32 {
+		return "0000000000000000000000000000000000000000000000000000000000000000"
+	}
 	length := 32
 	var reverseData [32]byte
 
@@ -56,6 +71,46 @@ func ReverseBytes(data []byte) (result []byte) {
 		result = append([]byte{b}, result...)
 	}
 	return result
+}
+
+// PayToTaprootScript creates a pk script for a pay-to-taproot output key.
+func PayToTaprootScript(taprootKey *btcec.PublicKey) ([]byte, error) {
+	return txscript.NewScriptBuilder().
+		AddOp(txscript.OP_1).
+		AddData(schnorr.SerializePubKey(taprootKey)).
+		Script()
+}
+
+// PayToWitnessScript creates a pk script for a pay-to-wpkh output key.
+func PayToWitnessScript(pubkey *btcec.PublicKey) ([]byte, error) {
+	return txscript.NewScriptBuilder().
+		AddOp(txscript.OP_0).
+		AddData(btcutil.Hash160(pubkey.SerializeCompressed())).
+		Script()
+}
+
+func GetPkScriptByAddress(addr string, netParams *chaincfg.Params) (pk []byte, err error) {
+	if len(addr) == 0 {
+		return nil, errors.New("decoded address empty")
+	}
+
+	addressObj, err := btcutil.DecodeAddress(addr, netParams)
+	if err != nil {
+		if len(addr) != 68 || !strings.HasPrefix(addr, "6a20") {
+			return nil, errors.New("decoded address is of unknown format")
+		}
+		// check full hex
+		pkHex, err := hex.DecodeString(addr)
+		if err != nil {
+			return nil, errors.New("decoded address is of unknown format")
+		}
+		return pkHex, nil
+	}
+	addressPkScript, err := txscript.PayToAddrScript(addressObj)
+	if err != nil {
+		return nil, errors.New("decoded address is of unknown format")
+	}
+	return addressPkScript, nil
 }
 
 // GetAddressFromScript Use btcsuite to get address
@@ -104,14 +159,25 @@ func GetModuleFromScript(script []byte) (module string, ok bool) {
 	return module, true
 }
 
-func GetInnerSwapPoolNameByToken(token0, token1 string) (poolPair string) {
-	token0 = strings.ToLower(token0)
-	token1 = strings.ToLower(token1)
-
-	if token0 > token1 {
-		poolPair = fmt.Sprintf("%s/%s", token1, token0)
-	} else {
-		poolPair = fmt.Sprintf("%s/%s", token0, token1)
+func DecodeInscriptionFromBin(script []byte) (id string) {
+	n := len(script)
+	if n < 32 || n > 36 {
+		return ""
 	}
-	return poolPair
+
+	var idx uint32
+	if n == 32 {
+		idx = uint32(0)
+	} else if n <= 33 {
+		idx = uint32(script[32])
+	} else if n <= 34 {
+		idx = uint32(binary.LittleEndian.Uint16(script[32:34]))
+	} else if n <= 35 {
+		idx = uint32(script[32]) | uint32(script[33])<<8 | uint32(script[34])<<16
+	} else if n <= 36 {
+		idx = binary.LittleEndian.Uint32(script[32:36])
+	}
+
+	id = fmt.Sprintf("%si%d", HashString(script[:32]), idx)
+	return id
 }

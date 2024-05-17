@@ -1,7 +1,6 @@
 package controller
 
 import (
-	swapModel "brc20query/lib/brc20_swap/model"
 	"brc20query/lib/utils"
 	"brc20query/logger"
 	"brc20query/model"
@@ -11,6 +10,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	swapModel "github.com/unisat-wallet/libbrc20-indexer/model"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"

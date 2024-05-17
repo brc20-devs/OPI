@@ -1,11 +1,5 @@
 package model
 
-import (
-	"fmt"
-
-	"brc20query/lib/brc20_swap/utils"
-)
-
 // history
 type BRC20ModuleHistory struct {
 	BRC20HistoryBase
@@ -24,7 +18,7 @@ func NewBRC20ModuleHistory(isTransfer bool, historyType uint8, from, to *Inscrip
 			Height:            from.Height,
 			ContentBody:       from.ContentBody, // to.Content is empty on transfer
 			InscriptionNumber: from.InscriptionNumber,
-			InscriptionId:     fmt.Sprintf("%si%d", utils.HashString([]byte(from.TxId)), from.Idx),
+			InscriptionId:     from.GetInscriptionId(),
 		},
 	}
 	if isTransfer {
@@ -56,13 +50,19 @@ func NewBRC20ModuleHistory(isTransfer bool, historyType uint8, from, to *Inscrip
 	return history
 }
 
-// history
+// withdraw history
+type BRC20SwapHistoryWithdrawData struct {
+	Tick   string `json:"tick"`
+	Amount string `json:"amount"` // current amt
+}
+
+// approve history
 type BRC20SwapHistoryApproveData struct {
 	Tick   string `json:"tick"`
 	Amount string `json:"amount"` // current amt
 }
 
-// history
+// cond approve history
 type BRC20SwapHistoryCondApproveData struct {
 	Tick                  string `json:"tick"`
 	Amount                string `json:"amount"`      // current amt

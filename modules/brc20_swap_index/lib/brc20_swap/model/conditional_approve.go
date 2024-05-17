@@ -1,7 +1,7 @@
 package model
 
 import (
-	"brc20query/lib/brc20_swap/decimal"
+	"github.com/unisat-wallet/libbrc20-indexer/decimal"
 )
 
 // state of approve for each tick, (balance and history)

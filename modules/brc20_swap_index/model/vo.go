@@ -1,6 +1,6 @@
 package model
 
-import brc20Model "brc20query/lib/brc20_swap/model"
+import brc20Model "github.com/unisat-wallet/libbrc20-indexer/model"
 
 // NFTData represents the structure for NFT data
 type NFTData struct {

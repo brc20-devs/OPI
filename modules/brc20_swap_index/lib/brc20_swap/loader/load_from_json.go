@@ -1,14 +1,15 @@
 package loader
 
 import (
-	"brc20query/lib/brc20_swap/model"
-	"brc20query/lib/brc20_swap/utils"
 	"bufio"
 	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
 func LoadBRC20InputJsonData(fname string) ([]*model.InscriptionBRC20Data, error) {
