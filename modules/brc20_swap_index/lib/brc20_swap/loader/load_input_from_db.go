@@ -1,13 +1,12 @@
 package loader
 
 import (
-	"brc20query/lib/brc20_swap/model"
 	"brc20query/logger"
 	"fmt"
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
+	"github.com/unisat-wallet/libbrc20-indexer/model"
 	"go.uber.org/zap"
 )
 
@@ -31,12 +30,12 @@ func loadBRC20InputDataFromDBOnBatch(brc20Datas chan *model.InscriptionBRC20Data
 	startHeight, endHeight int,
 	queryLimit int, queryOffset int) (lastHeight int32, err error) {
 	sql := fmt.Sprintf(`
-SELECT ts.block_height, ts.inscription_id, ts.txcnt, ts.old_satpoint, ts.new_satpoint, 
+SELECT ts.block_height, ts.inscription_id, ts.txcnt, ts.old_satpoint, ts.new_satpoint,
 	ts.new_pkscript, n2id.inscription_number, c.content, c.text_content, h.block_time
-FROM ord_transfers AS ts 
+FROM ord_transfers AS ts
 LEFT JOIN ord_number_to_id AS n2id ON ts.inscription_id = n2id.inscription_id
 LEFT JOIN ord_content AS c ON ts.inscription_id = c.inscription_id
-LEFT JOIN block_hashes AS h ON ts.block_height = h.block_height 
+LEFT JOIN block_hashes AS h ON ts.block_height = h.block_height
 WHERE ts.block_height >= %d AND ts.block_height < %d AND n2id.cursed_for_brc20 = false
 ORDER BY ts.id LIMIT %d OFFSET %d
 `, startHeight, endHeight, queryLimit, queryOffset)
@@ -98,12 +97,14 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 
 			vout, err = strconv.ParseUint(parts[1], 10, 64)
 			if err != nil {
-				return lastHeight, errors.WithMessagef(err, "inscription_id: %s", inscription_id)
+				logger.Log.Debug("loadBRC20InputDataFromDBOnBatch", zap.String("inscription_id", inscription_id))
+				return lastHeight, err
 			}
 
 			offset, err = strconv.ParseUint(parts[2], 10, 64)
 			if err != nil {
-				return lastHeight, errors.WithMessagef(err, "inscription_id: %s", inscription_id)
+				logger.Log.Debug("loadBRC20InputDataFromDBOnBatch", zap.String("inscription_id", inscription_id))
+				return lastHeight, err
 			}
 		}
 

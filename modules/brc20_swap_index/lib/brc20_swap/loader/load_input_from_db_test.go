@@ -1,10 +1,11 @@
 package loader
 
 import (
-	"brc20query/lib/brc20_swap/model"
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/unisat-wallet/libbrc20-indexer/model"
 )
 
 var (
