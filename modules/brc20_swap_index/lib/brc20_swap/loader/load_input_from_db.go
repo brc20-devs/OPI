@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/unisat-wallet/libbrc20-indexer/model"
 	"go.uber.org/zap"
@@ -13,37 +14,49 @@ import (
 func LoadBRC20InputDataFromDB(brc20Datas chan *model.InscriptionBRC20Data, startHeight int, endHeight int) error {
 	logger.Log.Info("LoadBRC20InputDataFromDB", zap.Int("startHeight", startHeight), zap.Int("endHeight", endHeight))
 
-	batchLimit := 1024
-	for offset := 0; ; offset += batchLimit {
-		if lastHeight, err := loadBRC20InputDataFromDBOnBatch(
-			brc20Datas, startHeight, endHeight, batchLimit, offset); err != nil {
-			return err
-		} else if lastHeight > int32(endHeight) || lastHeight == -1 {
-			return nil
-		} else if offset%10240 == 0 {
-			logger.Log.Debug("LoadBRC20InputDataFromDB", zap.Int32("height", lastHeight), zap.Int("count", offset))
+	for height := startHeight; height < endHeight; height++ {
+		batchLimit := 10240
+		st := time.Now()
+		offset := 0
+		count := 0
+		blkDatas := make([]*model.InscriptionBRC20Data, 0)
+		for ; ; offset += batchLimit {
+			if datas, err := loadBRC20InputDataFromDBOnBatch(height, batchLimit, offset); err != nil {
+				return err
+			} else if len(datas) == 0 {
+				break
+			} else {
+				blkDatas = append(blkDatas, datas...)
+				count += len(datas)
+			}
+		}
+		logger.Log.Debug("LoadBRC20InputDataFromDB",
+			zap.Int("height", height),
+			zap.Int("count", count),
+			zap.String("duration", time.Since(st).String()))
+
+		for _, data := range blkDatas {
+			brc20Datas <- data
 		}
 	}
+	return nil
 }
 
-func loadBRC20InputDataFromDBOnBatch(brc20Datas chan *model.InscriptionBRC20Data,
-	startHeight, endHeight int,
-	queryLimit int, queryOffset int) (lastHeight int32, err error) {
+func loadBRC20InputDataFromDBOnBatch(height int, queryLimit int, queryOffset int) (datas []*model.InscriptionBRC20Data, err error) {
 	sql := fmt.Sprintf(`
 SELECT ts.block_height, ts.inscription_id, ts.txcnt, ts.old_satpoint, ts.new_satpoint,
 	ts.new_pkscript, n2id.inscription_number, c.content, c.text_content, h.block_time
 FROM ord_transfers AS ts
-LEFT JOIN ord_number_to_id AS n2id ON ts.inscription_id = n2id.inscription_id
-LEFT JOIN ord_content AS c ON ts.inscription_id = c.inscription_id
-LEFT JOIN block_hashes AS h ON ts.block_height = h.block_height
-WHERE ts.block_height >= %d AND ts.block_height < %d AND n2id.cursed_for_brc20 = false
+INNER JOIN ord_number_to_id AS n2id ON ts.inscription_id = n2id.inscription_id
+INNER JOIN ord_content AS c ON ts.inscription_id = c.inscription_id
+INNER JOIN block_hashes AS h ON ts.block_height = h.block_height 
+WHERE ts.block_height = %d AND n2id.cursed_for_brc20 = false
 ORDER BY ts.id LIMIT %d OFFSET %d
-`, startHeight, endHeight, queryLimit, queryOffset)
+`, height, queryLimit, queryOffset)
 
-	lastHeight = -1 // -1: no new block or error
 	rows, err := SwapDB.Query(sql)
 	if err != nil {
-		return lastHeight, err
+		return nil, err
 	}
 	defer rows.Close()
 
@@ -64,12 +77,7 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 		if err := rows.Scan(
 			&block_height, &inscription_id, &txcnt, &old_satpoint, &new_satpoint,
 			&new_pkscript, &inscription_number, &content, &text_content, &block_time); err != nil {
-			return lastHeight, err
-		}
-
-		lastHeight = int32(block_height)
-		if int(block_height) > endHeight {
-			break
+			return datas, err
 		}
 
 		var (
@@ -98,13 +106,13 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 			vout, err = strconv.ParseUint(parts[1], 10, 64)
 			if err != nil {
 				logger.Log.Debug("loadBRC20InputDataFromDBOnBatch", zap.String("inscription_id", inscription_id))
-				return lastHeight, err
+				return datas, err
 			}
 
 			offset, err = strconv.ParseUint(parts[2], 10, 64)
 			if err != nil {
 				logger.Log.Debug("loadBRC20InputDataFromDBOnBatch", zap.String("inscription_id", inscription_id))
-				return lastHeight, err
+				return datas, err
 			}
 		}
 
@@ -127,8 +135,8 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 			InscriptionId:     inscription_id,
 		}
 
-		brc20Datas <- &data
+		datas = append(datas, &data)
 	}
 
-	return lastHeight, nil
+	return datas, nil
 }

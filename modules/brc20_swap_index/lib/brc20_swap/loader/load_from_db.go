@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
@@ -40,6 +41,18 @@ func buildSQLWhereInStr(colValsPair [][]string, startIndex ...int) (conds []stri
 	}
 
 	return conds, args
+}
+
+func GetLatestValidTransferHeighFromDB() (int, error) {
+	row := SwapDB.QueryRow(`SELECT block_height FROM brc20_valid_transfer order by block_height desc limit 1`)
+	height := 0
+	if err := row.Scan(&height); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, nil
+		}
+		return 0, err
+	}
+	return height, nil
 }
 
 func LoadFromDbTickerInfoMap() (map[string]*model.BRC20TokenInfo, error) {

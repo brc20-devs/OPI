@@ -28,9 +28,17 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
 	brc20swapLoader.Init(psqlInfo)
 
+	dbHeight, err := brc20swapLoader.GetLatestValidTransferHeighFromDB()
+	if err != nil {
+		log.Panicf("get db height error: %v", err)
+	}
+	if dbHeight > startHeight {
+		startHeight = int(dbHeight)
+	}
+
 	go func() {
 		if err := brc20swapLoader.LoadBRC20InputDataFromDB(brc20DatasLoad, startHeight, endHeight); err != nil {
-			log.Printf("load input data from db error: %v", err)
+			log.Panicf("load input data from db error: %v", err)
 		}
 		close(brc20DatasLoad)
 	}()

@@ -4,6 +4,7 @@ ARG GO_ARCH="amd64"
 WORKDIR /usr/local/build/
 COPY ./go.mod .
 COPY ./go.sum .
+COPY ./lib/brc20_swap/go.mod ./lib/brc20_swap/go.mod
 
 # Build binary output
 RUN GOOS=${GO_OS} GOARCH=${GO_ARCH} go mod download
