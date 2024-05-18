@@ -20,7 +20,7 @@ func LoadBRC20InputDataFromDB(ctx context.Context, brc20Datas chan *model.Inscri
 	if err := row.Scan(&metaMaxHeight); err != nil {
 		return err
 	}
-	if endHeight < 0 || metaMaxHeight < endHeight {
+	if endHeight <= 0 || metaMaxHeight < endHeight {
 		endHeight = metaMaxHeight
 	}
 
