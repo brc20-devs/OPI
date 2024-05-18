@@ -22,14 +22,23 @@ func Init(psqlInfo string) {
 	SwapDB.SetMaxIdleConns(1000)
 }
 
+func MustBegin() *sql.Tx {
+	tx, err := SwapDB.Begin()
+	if err != nil {
+		log.Panic("PG Begin Wrong: ", err)
+	}
+	return tx
+}
+
 // brc20_ticker_info
-func SaveDataToDBTickerInfoMap(height uint32,
+func SaveDataToDBTickerInfoMap(tx *sql.Tx, height uint32,
 	inscriptionsTickerInfoMap map[string]*model.BRC20TokenInfo,
 ) {
-	stmtTickerInfo, err := SwapDB.Prepare(`
+	stmtTickerInfo, err := tx.Prepare(`
 INSERT INTO brc20_ticker_info(block_height, tick, max_supply, decimals, limit_per_mint, remaining_supply, pkscript_deployer)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 `)
+
 	if err != nil {
 		log.Panic("PG Statements Wrong: ", err)
 	}
@@ -55,10 +64,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 	}
 }
 
-func SaveDataToDBTickerBalanceMap(height uint32,
+func SaveDataToDBTickerBalanceMap(tx *sql.Tx, height uint32,
 	tokenUsersBalanceData map[string]map[string]*model.BRC20TokenBalance,
 ) {
-	stmtUserBalance, err := SwapDB.Prepare(`
+	stmtUserBalance, err := tx.Prepare(`
 INSERT INTO brc20_user_balance(block_height, tick, pkscript, available_balance, transferable_balance)
 VALUES ($1, $2, $3, $4, $5)
 `)
@@ -90,26 +99,26 @@ VALUES ($1, $2, $3, $4, $5)
 	}
 }
 
-func SaveDataToDBTickerHistoryMap(height uint32,
+func SaveDataToDBTickerHistoryMap(tx *sql.Tx, height uint32,
 	allHistory []*model.BRC20History,
 ) {
-	stmtBRC20History, err := SwapDB.Prepare(`
+	stmtBRC20History, err := tx.Prepare(`
 INSERT INTO brc20_history(block_height, tick,
-    history_type,
-    valid,
-    txid,
-    idx,
-    vout,
-    output_value,
-    output_offset,
-    pkscript_from,
-    pkscript_to,
-    fee,
-    txidx,
-    block_time,
-    inscription_number,
-    inscription_id,
-    inscription_content,
+	history_type,
+	valid,
+	txid,
+	idx,
+	vout,
+	output_value,
+	output_offset,
+	pkscript_from,
+	pkscript_to,
+	fee,
+	txidx,
+	block_time,
+	inscription_number,
+	inscription_id,
+	inscription_content,
 	 amount,
 	 available_balance,
 	 transferable_balance) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
@@ -139,20 +148,20 @@ INSERT INTO brc20_history(block_height, tick,
 				h.Amount, h.AvailableBalance, h.TransferableBalance,
 			)
 			if err != nil {
-				log.Panic("PG Statements Exec Wrong: ", err, " TxId:", h.TxId, " Idx:", h.Idx, " Vout:", h.Vout, " Satoshi:", h.Satoshi, " Offset:", h.Offset, " PkScriptFrom:", h.PkScriptFrom, " PkScriptTo:", h.PkScriptTo, " Fee:", h.Fee, " TxIdx:", h.TxIdx, " BlockTime:", h.BlockTime, " InscriptionNumber:", h.Inscription.InscriptionNumber, " InscriptionId:", h.Inscription.InscriptionId, " Amount:", h.Amount, " AvailableBalance:", h.AvailableBalance, " TransferableBalance:", h.TransferableBalance)
+				log.Panic("PG Statements Exec Wrong: ", err)
 			}
-
 			if _, err := res.RowsAffected(); err != nil {
 				log.Panic("PG Affecte Wrong: ", err)
 			}
+
 		}
 	}
 }
 
-func SaveDataToDBTransferStateMap(height uint32,
+func SaveDataToDBTransferStateMap(tx *sql.Tx, height uint32,
 	inscriptionsTransferRemoveMap map[string]uint32,
 ) {
-	stmtTransferState, err := SwapDB.Prepare(`
+	stmtTransferState, err := tx.Prepare(`
 INSERT INTO brc20_transfer_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
@@ -176,12 +185,12 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBValidTransferMap(height uint32,
+func SaveDataToDBValidTransferMap(tx *sql.Tx, height uint32,
 	inscriptionsValidTransferMap map[string]*model.InscriptionBRC20TickInfo,
 ) {
-	stmtValidTransfer, err := SwapDB.Prepare(`
+	stmtValidTransfer, err := tx.Prepare(`
 INSERT INTO brc20_valid_transfer(block_height, create_key, tick, pkscript, amount,
-    inscription_number, inscription_id, txid, vout, output_value, output_offset)
+	inscription_number, inscription_id, txid, vout, output_value, output_offset)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `)
 	if err != nil {
@@ -212,18 +221,18 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 
 }
 
-func SaveDataToDBModuleInfoMap(height uint32,
+func SaveDataToDBModuleInfoMap(tx *sql.Tx, height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
-	stmtSwapInfo, err := SwapDB.Prepare(`
+	stmtSwapInfo, err := tx.Prepare(`
 INSERT INTO brc20_swap_info(block_height, module_id,
-    name,
-    pkscript_deployer,
-    pkscript_sequencer,
-    pkscript_gas_to,
-    pkscript_lp_fee,
-    gas_tick,
-    fee_rate_swap
+	name,
+	pkscript_deployer,
+	pkscript_sequencer,
+	pkscript_gas_to,
+	pkscript_lp_fee,
+	gas_tick,
+	fee_rate_swap
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `)
@@ -256,26 +265,26 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	}
 }
 
-func SaveDataToDBModuleHistoryMap(height uint32,
+func SaveDataToDBModuleHistoryMap(tx *sql.Tx, height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
-	stmtSwapHistory, err := SwapDB.Prepare(`
+	stmtSwapHistory, err := tx.Prepare(`
 INSERT INTO brc20_swap_history(block_height, module_id,
-    history_type,
-    valid,
-    txid,
-    idx,
-    vout,
-    output_value,
-    output_offset,
-    pkscript_from,
-    pkscript_to,
-    fee,
-    txidx,
-    block_time,
-    inscription_number,
-    inscription_id,
-    inscription_content
+	history_type,
+	valid,
+	txid,
+	idx,
+	vout,
+	output_value,
+	output_offset,
+	pkscript_from,
+	pkscript_to,
+	fee,
+	txidx,
+	block_time,
+	inscription_number,
+	inscription_id,
+	inscription_content
 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 `)
 	if err != nil {
@@ -323,10 +332,10 @@ INSERT INTO brc20_swap_history(block_height, module_id,
 }
 
 // approve
-func SaveDataToDBSwapApproveStateMap(height uint32,
+func SaveDataToDBSwapApproveStateMap(tx *sql.Tx, height uint32,
 	inscriptionsApproveRemoveMap map[string]uint32,
 ) {
-	stmtApproveState, err := SwapDB.Prepare(`
+	stmtApproveState, err := tx.Prepare(`
 INSERT INTO brc20_swap_approve_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
@@ -349,12 +358,12 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapApproveMap(height uint32,
+func SaveDataToDBSwapApproveMap(tx *sql.Tx, height uint32,
 	inscriptionsValidApproveMap map[string]*model.InscriptionBRC20SwapInfo,
 ) {
-	stmtValidApprove, err := SwapDB.Prepare(`
+	stmtValidApprove, err := tx.Prepare(`
 INSERT INTO brc20_swap_valid_approve(block_height, module_id, create_key, tick, pkscript, amount,
-    inscription_number, inscription_id, txid, vout, output_value, output_offset)
+	inscription_number, inscription_id, txid, vout, output_value, output_offset)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `)
 	if err != nil {
@@ -385,10 +394,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 }
 
 // cond approve
-func SaveDataToDBSwapCondApproveStateMap(height uint32,
+func SaveDataToDBSwapCondApproveStateMap(tx *sql.Tx, height uint32,
 	inscriptionsCondApproveRemoveMap map[string]uint32,
 ) {
-	stmtCondApproveState, err := SwapDB.Prepare(`
+	stmtCondApproveState, err := tx.Prepare(`
 INSERT INTO brc20_swap_cond_approve_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
@@ -411,12 +420,12 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapCondApproveMap(height uint32,
+func SaveDataToDBSwapCondApproveMap(tx *sql.Tx, height uint32,
 	inscriptionsValidConditionalApproveMap map[string]*model.InscriptionBRC20SwapConditionalApproveInfo,
 ) {
-	stmtValidCondApprove, err := SwapDB.Prepare(`
+	stmtValidCondApprove, err := tx.Prepare(`
 INSERT INTO brc20_swap_valid_cond_approve(block_height, create_key, module_id, tick, pkscript, amount,
-    inscription_number, inscription_id, txid, vout, output_value, output_offset)
+	inscription_number, inscription_id, txid, vout, output_value, output_offset)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `)
 	if err != nil {
@@ -447,10 +456,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 }
 
 // withdraw
-func SaveDataToDBSwapWithdrawStateMap(height uint32,
+func SaveDataToDBSwapWithdrawStateMap(tx *sql.Tx, height uint32,
 	inscriptionsWithdrawRemoveMap map[string]uint32,
 ) {
-	stmtWithdrawState, err := SwapDB.Prepare(`
+	stmtWithdrawState, err := tx.Prepare(`
 INSERT INTO brc20_swap_withdraw_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
@@ -474,12 +483,12 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapWithdrawMap(height uint32,
+func SaveDataToDBSwapWithdrawMap(tx *sql.Tx, height uint32,
 	inscriptionsValidWithdrawMap map[string]*model.InscriptionBRC20SwapInfo,
 ) {
-	stmtValidWithdraw, err := SwapDB.Prepare(`
+	stmtValidWithdraw, err := tx.Prepare(`
 INSERT INTO brc20_swap_valid_withdraw(block_height, create_key, module_id, tick, pkscript, amount,
-    inscription_number, inscription_id, txid, vout, output_value, output_offset)
+	inscription_number, inscription_id, txid, vout, output_value, output_offset)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 `)
 	if err != nil {
@@ -512,10 +521,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 }
 
 // commit
-func SaveDataToDBSwapCommitStateMap(height uint32,
+func SaveDataToDBSwapCommitStateMap(tx *sql.Tx, height uint32,
 	inscriptionsCommitRemoveMap map[string]uint32,
 ) {
-	stmtCommitState, err := SwapDB.Prepare(`
+	stmtCommitState, err := tx.Prepare(`
 INSERT INTO brc20_swap_commit_state(block_height, create_key, moved)
 VALUES ($1, $2, $3)
 `)
@@ -538,12 +547,12 @@ VALUES ($1, $2, $3)
 	}
 }
 
-func SaveDataToDBSwapCommitMap(height uint32,
+func SaveDataToDBSwapCommitMap(tx *sql.Tx, height uint32,
 	inscriptionsValidCommitMap map[string]*model.InscriptionBRC20Data,
 ) {
-	stmtValidCommit, err := SwapDB.Prepare(`
+	stmtValidCommit, err := tx.Prepare(`
 INSERT INTO brc20_swap_valid_commit(block_height, module_id, create_key, pkscript,
-    inscription_number, inscription_id, txid, vout, output_value, output_offset, inscription_content)
+	inscription_number, inscription_id, txid, vout, output_value, output_offset, inscription_content)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 `)
 	if err != nil {
@@ -569,9 +578,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 }
 
 // fixme: save by height
-func SaveDataToDBModuleCommitChainMap(height uint32,
+func SaveDataToDBModuleCommitChainMap(tx *sql.Tx, height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
-	stmtSwapCommitChain, err := SwapDB.Prepare(`
+	stmtSwapCommitChain, err := tx.Prepare(`
 INSERT INTO brc20_swap_commit_chain(block_height, module_id, commit_id, valid, connected)
 VALUES ($1, $2, $3, $4, $5)
 `)
@@ -623,12 +632,12 @@ VALUES ($1, $2, $3, $4, $5)
 	}
 }
 
-func SaveDataToDBModuleUserBalanceMap(height uint32,
+func SaveDataToDBModuleUserBalanceMap(tx *sql.Tx, height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
-	stmtUserBalance, err := SwapDB.Prepare(`
+	stmtUserBalance, err := tx.Prepare(`
 INSERT INTO brc20_swap_user_balance(block_height, module_id, tick,
-    pkscript, swap_balance, available_balance, approveable_balance, cond_approveable_balance, withdrawable_balance)
+	pkscript, swap_balance, available_balance, approveable_balance, cond_approveable_balance, withdrawable_balance)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `)
 	if err != nil {
@@ -663,10 +672,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	}
 }
 
-func SaveDataToDBModulePoolLpBalanceMap(height uint32,
+func SaveDataToDBModulePoolLpBalanceMap(tx *sql.Tx, height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
-	stmtPoolBalance, err := SwapDB.Prepare(`
+	stmtPoolBalance, err := tx.Prepare(`
 INSERT INTO brc20_swap_pool_balance(block_height, module_id, pool, tick0, tick0_balance, tick1, tick1_balance, lp_balance)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `)
@@ -701,10 +710,10 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	}
 }
 
-func SaveDataToDBModuleUserLpBalanceMap(height uint32,
+func SaveDataToDBModuleUserLpBalanceMap(tx *sql.Tx, height uint32,
 	modulesInfoMap map[string]*model.BRC20ModuleSwapInfo) {
 
-	stmtLpBalance, err := SwapDB.Prepare(`
+	stmtLpBalance, err := tx.Prepare(`
 INSERT INTO brc20_swap_user_lp_balance(block_height, module_id, pool, pkscript, lp_balance)
 VALUES ($1, $2, $3, $4, $5)
 `)

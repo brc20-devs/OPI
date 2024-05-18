@@ -21,34 +21,45 @@ func (g *BRC20ModuleIndexer) PurgeHistoricalData() {
 }
 
 func (g *BRC20ModuleIndexer) SaveDataToDB(height uint32) {
-	// ticker info
-	loader.SaveDataToDBTickerInfoMap(height, g.InscriptionsTickerInfoMap)
-	loader.SaveDataToDBTickerBalanceMap(height, g.TokenUsersBalanceData)
-	// loader.SaveDataToDBTickerHistoryMap(height, g.AllHistory)  // fixme
+	tx := loader.MustBegin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+			panic(r)
+		} else {
+			if err := tx.Commit(); err != nil {
+				log.Fatal("SaveDataToDB tx commit failed: ", err)
+			}
+		}
+	}()
 
-	loader.SaveDataToDBTransferStateMap(height, g.InscriptionsTransferRemoveMap)
-	loader.SaveDataToDBValidTransferMap(height, g.InscriptionsValidTransferMap)
+	// ticker info
+	loader.SaveDataToDBTickerInfoMap(tx, height, g.InscriptionsTickerInfoMap)
+	loader.SaveDataToDBTickerBalanceMap(tx, height, g.TokenUsersBalanceData)
+	// loader.SaveDataToDBTickerHistoryMap(tx, height, g.AllHistory)  // fixme
+
+	loader.SaveDataToDBTransferStateMap(tx, height, g.InscriptionsTransferRemoveMap)
+	loader.SaveDataToDBValidTransferMap(tx, height, g.InscriptionsValidTransferMap)
 
 	// module info
-	loader.SaveDataToDBModuleInfoMap(height, g.ModulesInfoMap)
-	loader.SaveDataToDBModuleHistoryMap(height, g.ModulesInfoMap)
-	loader.SaveDataToDBModuleCommitChainMap(height, g.ModulesInfoMap)
-	loader.SaveDataToDBModuleUserBalanceMap(height, g.ModulesInfoMap)
-	loader.SaveDataToDBModulePoolLpBalanceMap(height, g.ModulesInfoMap)
-	loader.SaveDataToDBModuleUserLpBalanceMap(height, g.ModulesInfoMap)
+	loader.SaveDataToDBModuleInfoMap(tx, height, g.ModulesInfoMap)
+	loader.SaveDataToDBModuleHistoryMap(tx, height, g.ModulesInfoMap)
+	loader.SaveDataToDBModuleCommitChainMap(tx, height, g.ModulesInfoMap)
+	loader.SaveDataToDBModuleUserBalanceMap(tx, height, g.ModulesInfoMap)
+	loader.SaveDataToDBModulePoolLpBalanceMap(tx, height, g.ModulesInfoMap)
+	loader.SaveDataToDBModuleUserLpBalanceMap(tx, height, g.ModulesInfoMap)
 
-	loader.SaveDataToDBSwapApproveStateMap(height, g.InscriptionsApproveRemoveMap)
-	loader.SaveDataToDBSwapApproveMap(height, g.InscriptionsValidApproveMap)
+	loader.SaveDataToDBSwapApproveStateMap(tx, height, g.InscriptionsApproveRemoveMap)
+	loader.SaveDataToDBSwapApproveMap(tx, height, g.InscriptionsValidApproveMap)
 
-	loader.SaveDataToDBSwapCondApproveStateMap(height, g.InscriptionsCondApproveRemoveMap)
-	loader.SaveDataToDBSwapCondApproveMap(height, g.InscriptionsValidConditionalApproveMap)
+	loader.SaveDataToDBSwapCondApproveStateMap(tx, height, g.InscriptionsCondApproveRemoveMap)
+	loader.SaveDataToDBSwapCondApproveMap(tx, height, g.InscriptionsValidConditionalApproveMap)
 
-	loader.SaveDataToDBSwapCommitStateMap(height, g.InscriptionsCommitRemoveMap)
-	loader.SaveDataToDBSwapCommitMap(height, g.InscriptionsValidCommitMap)
+	loader.SaveDataToDBSwapCommitStateMap(tx, height, g.InscriptionsCommitRemoveMap)
+	loader.SaveDataToDBSwapCommitMap(tx, height, g.InscriptionsValidCommitMap)
 
-	loader.SaveDataToDBSwapWithdrawStateMap(height, g.InscriptionsWithdrawRemoveMap)
-	loader.SaveDataToDBSwapWithdrawMap(height, g.InscriptionsValidWithdrawMap)
-
+	loader.SaveDataToDBSwapWithdrawStateMap(tx, height, g.InscriptionsWithdrawRemoveMap)
+	loader.SaveDataToDBSwapWithdrawMap(tx, height, g.InscriptionsValidWithdrawMap)
 }
 
 func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
