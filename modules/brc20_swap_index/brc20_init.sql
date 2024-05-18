@@ -254,7 +254,7 @@ CREATE TABLE public.brc20_swap_user_lp_balance (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
-	pool varchar(9) NOT NULL,
+	pool varchar(11) NOT NULL,
 	pkscript bytea NOT NULL,
 	lp_balance numeric(40) NOT NULL
 );
