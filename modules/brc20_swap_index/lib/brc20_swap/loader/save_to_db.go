@@ -39,9 +39,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 		}
 		// save ticker info
 		res, err := stmtTickerInfo.Exec(height, info.Ticker,
-			info.Deploy.Max.String(),
-			info.Deploy.Decimal,
-			info.Deploy.Limit.String(),
+			info.Deploy.Data.BRC20Max,
+			info.Deploy.Data.BRC20Decimal,
+			info.Deploy.Data.BRC20Limit,
 			info.Deploy.Max.Sub(info.Deploy.TotalMinted).String(),
 			info.Deploy.PkScript,
 		)

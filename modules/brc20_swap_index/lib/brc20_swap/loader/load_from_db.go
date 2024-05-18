@@ -97,6 +97,16 @@ INNER JOIN (
 				Decimal:     decimals,
 				Limit:       decimal.MustNewDecimalFromString(limit, int(decimals)),
 				TotalMinted: minted,
+				Data: &model.InscriptionBRC20InfoResp{
+					Operation:     "",
+					BRC20Tick:     tick,
+					BRC20Max:      max,
+					BRC20Limit:    limit,
+					BRC20Amount:   "",
+					BRC20Decimal:  fmt.Sprintf("%d", decimals),
+					BRC20Minted:   "",
+					BRC20SelfMint: "",
+				},
 			},
 		}
 	}
@@ -104,10 +114,11 @@ INNER JOIN (
 	return tickerInfoMap, nil
 }
 
-func LoadFromDbUserTokensBalanceData(pkscripts, ticks []string) (
+func LoadFromDbUserTokensBalanceData(tokenInfos map[string]*model.BRC20TokenInfo, pkscripts, ticks []string) (
 	map[string]map[string]*model.BRC20TokenBalance, // [address][ticker]balanc
 	error,
 ) {
+
 	inConds, inCondArgs := buildSQLWhereInStr([][]string{
 		append(pkscripts, "pkscript"),
 		append(ticks, "tick"),
@@ -123,12 +134,9 @@ FROM brc20_user_balance t1
 INNER JOIN (
 	SELECT tick, pkscript, MAX(block_height) AS max_block_height
 	FROM brc20_user_balance %s GROUP BY tick, pkscript
-) t2 ON t1.tick = t2.tick AND t1.pkscript = t2.pkscript AND t1.block_height = t2.max_block_height;
+) t2 ON t1.tick = t2.tick AND t1.pkscript = t2.pkscript AND t1.block_height = t2.max_block_height
 `, condSql)
 	args := inCondArgs
-
-	// log.Printf("sql: %s", sql)
-	// log.Printf("args: %v", args)
 
 	rows, err := SwapDB.Query(sql, args...)
 	if err != nil {
@@ -142,41 +150,55 @@ INNER JOIN (
 		height       int
 		available    string
 		transferable string
+		decimals     uint8
 	)
-	userTokensBalanceMap := make(map[string]map[string]*model.BRC20TokenBalance)
 
+	userTokensBalanceMap := make(map[string]map[string]*model.BRC20TokenBalance)
 	for rows.Next() {
 		if err := rows.Scan(&tick, &pkscript, &height, &available, &transferable); err != nil {
 			return nil, err
 		}
 
+		lowerTick := strings.ToLower(tick)
+		if info, ok := tokenInfos[lowerTick]; !ok {
+			return nil, fmt.Errorf("token info not found for ticker: %s", lowerTick)
+		} else {
+			decimals = info.Deploy.Decimal
+		}
+
 		balance := &model.BRC20TokenBalance{
 			Ticker:              tick,
 			PkScript:            pkscript,
-			AvailableBalance:    decimal.MustNewDecimalFromString(available, 0),
-			TransferableBalance: decimal.MustNewDecimalFromString(transferable, 0),
+			AvailableBalance:    decimal.MustNewDecimalFromString(available, int(decimals)),
+			TransferableBalance: decimal.MustNewDecimalFromString(transferable, int(decimals)),
 		}
 
 		if _, ok := userTokensBalanceMap[pkscript]; !ok {
 			userTokensBalanceMap[pkscript] = make(map[string]*model.BRC20TokenBalance)
 		}
 
-		userTokensBalanceMap[pkscript][tick] = balance
+		userTokensBalanceMap[pkscript][lowerTick] = balance
 	}
 
 	return userTokensBalanceMap, nil
 }
 
-func UserTokensBalanceMap2TokenUsersBalanceMap(userTokensMap map[string]map[string]*model.BRC20TokenBalance) map[string]map[string]*model.BRC20TokenBalance {
+func UserTokensBalanceMap2TokenUsersBalanceMap(
+	tokenInfos map[string]*model.BRC20TokenInfo,
+	userTokensMap map[string]map[string]*model.BRC20TokenBalance) map[string]map[string]*model.BRC20TokenBalance {
 	// [ticker][address]balanc
 	tokenUsersMap := make(map[string]map[string]*model.BRC20TokenBalance)
+
+	// init all tickers
+	for tick := range tokenInfos {
+		tokenUsersMap[tick] = make(map[string]*model.BRC20TokenBalance)
+	}
 
 	for pkscript, userTokensBalance := range userTokensMap {
 		for tick, balance := range userTokensBalance {
 			if _, ok := tokenUsersMap[tick]; !ok {
 				tokenUsersMap[tick] = make(map[string]*model.BRC20TokenBalance)
 			}
-
 			tokenUsersMap[tick][pkscript] = balance
 		}
 	}
@@ -278,7 +300,19 @@ FROM brc20_swap_info
 	modulesInfoMap := make(map[string]*model.BRC20ModuleSwapInfo)
 	for rows.Next() {
 		var moduleId string
-		var info model.BRC20ModuleSwapInfo
+		info := model.BRC20ModuleSwapInfo{
+			History:                               make([]*model.BRC20ModuleHistory, 0),
+			CommitInvalidMap:                      make(map[string]struct{}, 0),
+			CommitIdChainMap:                      make(map[string]struct{}, 0),
+			CommitIdMap:                           make(map[string]struct{}, 0),
+			UsersTokenBalanceDataMap:              make(map[string]map[string]*model.BRC20ModuleTokenBalance, 0),
+			TokenUsersBalanceDataMap:              make(map[string]map[string]*model.BRC20ModuleTokenBalance, 0),
+			LPTokenUsersBalanceMap:                make(map[string]map[string]*decimal.Decimal, 0),
+			LPTokenUsersBalanceUpdatedMap:         make(map[string]struct{}, 0),
+			UsersLPTokenBalanceMap:                make(map[string]map[string]*decimal.Decimal, 0),
+			SwapPoolTotalBalanceDataMap:           make(map[string]*model.BRC20ModulePoolTotalBalance, 0),
+			ConditionalApproveStateBalanceDataMap: make(map[string]*model.BRC20ModuleConditionalApproveStateBalance, 0),
+		}
 		err := rows.Scan(
 			&moduleId,
 			&info.Name,
