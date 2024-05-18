@@ -124,11 +124,14 @@ func main() {
 		brc20API.POST("/brc20-module/verify-commit", controller.BRC20ModuleVerifySwapCommitContent)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// brc20 swap
 	go func() {
 		endHeight, _ := strconv.Atoi(endHeightBRC20Process)
 		startHeight, _ := strconv.Atoi(startHeightBRC20Process)
-		brc20.ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight)
+		brc20.ProcessUpdateLatestBRC20SwapInit(ctx, startHeight, endHeight)
 		brc20SwapReady = true
 	}()
 
@@ -159,15 +162,18 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	logger.Log.Info("Shutdown Server ...")
+	cancel()
 
-	timeout := time.Duration(1) * time.Second
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
+	{
+		timeout := time.Duration(1) * time.Second
+		ctx, cancel := context.WithTimeout(context.Background(), timeout)
+		defer cancel()
 
-	if err := svr.Shutdown(ctx); err != nil {
-		logger.Log.Fatal("Shutdown:",
-			zap.Error(err),
-		)
-
+		if err := svr.Shutdown(ctx); err != nil {
+			logger.Log.Fatal("Shutdown:",
+				zap.Error(err),
+			)
+		}
 	}
 }

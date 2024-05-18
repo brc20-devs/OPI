@@ -1,14 +1,18 @@
 package brc20
 
 import (
+	"brc20query/logger"
 	"brc20query/model"
+	"context"
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	brc20swapIndexer "github.com/unisat-wallet/libbrc20-indexer/indexer"
 	brc20swapLoader "github.com/unisat-wallet/libbrc20-indexer/loader"
 	brc20swapModel "github.com/unisat-wallet/libbrc20-indexer/model"
+	"go.uber.org/zap"
 )
 
 var (
@@ -20,7 +24,7 @@ var (
 )
 
 // ProcessUpdateLatestBRC20SwapInit
-func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
+func ProcessUpdateLatestBRC20SwapInit(ctx context.Context, startHeight, endHeight int) {
 	brc20DatasLoad := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 	brc20DatasDump := make(chan interface{}, 10240)
 	brc20DatasParse := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
@@ -37,7 +41,7 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	}
 
 	go func() {
-		if err := brc20swapLoader.LoadBRC20InputDataFromDB(brc20DatasLoad, startHeight, endHeight); err != nil {
+		if err := brc20swapLoader.LoadBRC20InputDataFromDB(ctx, brc20DatasLoad, startHeight, endHeight); err != nil {
 			log.Panicf("load input data from db error: %v", err)
 		}
 		close(brc20DatasLoad)
@@ -63,12 +67,14 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 	g := &brc20swapIndexer.BRC20ModuleIndexer{}
 	g.Init()
 
-	log.Printf("loading database...")
+	logger.Log.Info("loading from database...")
+	st := time.Now()
 	g.LoadDataFromDB(startHeight)
-	log.Printf("load database ok")
+	logger.Log.Info("load from database done", zap.String("elapse", time.Since(st).String()))
 
-	brc20DatasPerHeight := []*brc20swapModel.InscriptionBRC20Data{}
+	brc20DatasPerHeight := make([]*brc20swapModel.InscriptionBRC20Data, 0, 1024)
 	lastHeight := uint32(startHeight)
+	blockSt := time.Now()
 	for data := range brc20DatasParse {
 		if len(brc20DatasPerHeight) > 0 && lastHeight != data.Height {
 			brc20DatasPerHeightChan := make(chan interface{}, 10240)
@@ -79,16 +85,34 @@ func ProcessUpdateLatestBRC20SwapInit(startHeight, endHeight int) {
 				close(brc20DatasPerHeightChan)
 			}()
 
-			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeightChan, nil)
-			if g.Durty {
-				log.Printf("height: %d, saving database...", lastHeight)
-				g.SaveDataToDB(lastHeight)
-				log.Printf("save database ok")
+			{
+				st := time.Now()
+				g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeightChan, nil)
+				logger.Log.Debug("process brc20 data",
+					zap.Uint32("height", lastHeight),
+					zap.String("elapse", time.Since(st).String()))
+			}
 
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+
+			if g.Durty {
+				st := time.Now()
+				g.SaveDataToDB(lastHeight)
+				logger.Log.Debug("save to database",
+					zap.Uint32("height", lastHeight),
+					zap.String("elapse", time.Since(st).String()))
 				g.PurgeHistoricalData()
 			}
 
-			brc20DatasPerHeight = []*brc20swapModel.InscriptionBRC20Data{}
+			brc20DatasPerHeight = make([]*brc20swapModel.InscriptionBRC20Data, 0, 1024)
+			logger.Log.Debug("process block",
+				zap.Uint32("height", lastHeight),
+				zap.String("elapse", time.Since(blockSt).String()))
+			blockSt = time.Now()
 		}
 		lastHeight = data.Height
 		brc20DatasPerHeight = append(brc20DatasPerHeight, data)

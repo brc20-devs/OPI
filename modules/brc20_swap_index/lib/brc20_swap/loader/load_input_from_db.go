@@ -2,6 +2,7 @@ package loader
 
 import (
 	"brc20query/logger"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -11,7 +12,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func LoadBRC20InputDataFromDB(brc20Datas chan *model.InscriptionBRC20Data, startHeight int, endHeight int) error {
+func LoadBRC20InputDataFromDB(ctx context.Context, brc20Datas chan *model.InscriptionBRC20Data, startHeight int, endHeight int) error {
 	logger.Log.Info("LoadBRC20InputDataFromDB", zap.Int("startHeight", startHeight), zap.Int("endHeight", endHeight))
 
 	for height := startHeight; height < endHeight; height++ {
@@ -28,6 +29,9 @@ func LoadBRC20InputDataFromDB(brc20Datas chan *model.InscriptionBRC20Data, start
 			} else {
 				blkDatas = append(blkDatas, datas...)
 				count += len(datas)
+				if len(datas) < batchLimit {
+					break
+				}
 			}
 		}
 		logger.Log.Debug("LoadBRC20InputDataFromDB",
@@ -37,6 +41,12 @@ func LoadBRC20InputDataFromDB(brc20Datas chan *model.InscriptionBRC20Data, start
 
 		for _, data := range blkDatas {
 			brc20Datas <- data
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		default:
 		}
 	}
 	return nil
