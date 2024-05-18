@@ -4,6 +4,10 @@ import (
 	"log"
 	"time"
 
+	"go.uber.org/zap"
+
+	"brc20query/logger"
+
 	"github.com/unisat-wallet/libbrc20-indexer/decimal"
 	"github.com/unisat-wallet/libbrc20-indexer/loader"
 	"github.com/unisat-wallet/libbrc20-indexer/model"
@@ -72,9 +76,9 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
 	if g.InscriptionsTickerInfoMap, err = loader.LoadFromDbTickerInfoMap(); err != nil {
 		log.Fatal("LoadFromDBTickerInfoMap failed: ", err)
 	}
-	log.Printf("LoadFromDBTickerInfoMap, duration: %s, count: %d",
-		time.Since(st).String(),
-		len(g.InscriptionsTickerInfoMap),
+	logger.Log.Info("LoadFromDBTickerInfoMap",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("count", len(g.InscriptionsTickerInfoMap)),
 	)
 
 	st = time.Now()
@@ -82,44 +86,44 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
 		log.Fatal("LoadFromDBUserTokensBalanceData failed: ", err)
 	}
 	g.TokenUsersBalanceData = loader.UserTokensBalanceMap2TokenUsersBalanceMap(g.InscriptionsTickerInfoMap, g.UserTokensBalanceData)
-	log.Printf("LoadFromDBUserTokensBalanceData, duration: %s, ticks: %d, addresses: %d",
-		time.Since(st).String(),
-		len(g.TokenUsersBalanceData),
-		len(g.UserTokensBalanceData),
+	logger.Log.Info("LoadFromDBUserTokensBalanceData",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("ticks", len(g.TokenUsersBalanceData)),
+		zap.Int("addresses", len(g.UserTokensBalanceData)),
 	)
 
 	// st = time.Now()
 	// if g.InscriptionsTransferRemoveMap, err = loader.LoadFromDBTransferStateMap(); err != nil {
 	// 	log.Fatal("LoadFromDBTransferStateMap failed: ", err)
 	// }
-	// log.Printf("LoadFromDBTransferStateMap, duration: %s, count: %d",
-	// 	time.Since(st).String(),
-	// 	len(g.InscriptionsTransferRemoveMap),
+	// logger.Log.Info("LoadFromDBTransferStateMap",
+	// 	zap.String("duration", time.Since(st).String()),
+	// 	zap.Int("count", len(g.InscriptionsTransferRemoveMap)),
 	// )
 
 	st = time.Now()
 	if g.InscriptionsValidTransferMap, err = loader.LoadFromDBValidTransferMap(); err != nil {
 		log.Fatal("LoadFromDBvalidTransferMap failed: ", err)
 	}
-	log.Printf("LoadFromDBvalidTransferMap, duration: %s, count: %d",
-		time.Since(st).String(),
-		len(g.InscriptionsValidTransferMap),
+	logger.Log.Info("LoadFromDBvalidTransferMap",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("count", len(g.InscriptionsValidTransferMap)),
 	)
 
 	st = time.Now()
 	if g.ModulesInfoMap, err = loader.LoadFromDBModuleInfoMap(); err != nil {
 		log.Fatal("LoadFromDBModuleInfoMap failed: ", err)
 	}
-	log.Printf("LoadFromDBModuleInfoMap, duration: %s, count: %d",
-		time.Since(st).String(),
-		len(g.ModulesInfoMap),
+	logger.Log.Info("LoadFromDBModuleInfoMap",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("count", len(g.ModulesInfoMap)),
 	)
 
 	// st = time.Now()
 	// if g.InscriptionsApproveRemoveMap, err = loader.LoadFromDBSwapApproveStateMap(nil); err != nil {
 	// 	log.Fatal("LoadFromDBSwapApproveStateMap failed: ", err)
 	// }
-	// log.Printf("LoadFromDBSwapApproveStateMap",
+	// logger.Log.Info("LoadFromDBSwapApproveStateMap",
 	// 	zap.String("duration", time.Since(st).String()),
 	// 	zap.Int("count", len(g.InscriptionsApproveRemoveMap)),
 	// )
@@ -128,67 +132,69 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
 	if g.InscriptionsValidApproveMap, err = loader.LoadFromDBSwapApproveMap(nil); err != nil {
 		log.Fatal("LoadFromDBSwapApproveMap failed: ", err)
 	}
-	log.Printf("LoadFromDBSwapApproveMap, duration: %s, count: %d",
-		time.Since(st).String(),
-		len(g.InscriptionsValidApproveMap),
+	logger.Log.Info("LoadFromDBSwapApproveMap",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("count", len(g.InscriptionsValidApproveMap)),
 	)
 
 	// st = time.Now()
 	// if g.InscriptionsCondApproveRemoveMap, err = loader.LoadFromDBSwapCondApproveStateMap(nil); err != nil {
 	// 	log.Fatal("LoadFromDBSwapCondApproveStateMap failed: ", err)
 	// }
-	// log.Printf("LoadFromDBSwapCondApproveStateMap, duration: %s, count: %d",
-	// 	time.Since(st).String(),
-	// 	len(g.InscriptionsCondApproveRemoveMap),
+	// logger.Log.Info("LoadFromDBSwapCondApproveStateMap",
+	// 	zap.String("duration", time.Since(st).String()),
+	// 	zap.Int("count", len(g.InscriptionsCondApproveRemoveMap)),
 	// )
 
 	st = time.Now()
 	if g.InscriptionsValidConditionalApproveMap, err = loader.LoadFromDBSwapCondApproveMap(nil); err != nil {
 		log.Fatal("LoadFromDBSwapCondApproveMap failed: ", err)
 	}
-	log.Printf("LoadFromDBSwapCondApproveMap, duration: %s, count: %d",
-		time.Since(st).String(),
-		len(g.InscriptionsValidConditionalApproveMap),
+	logger.Log.Info("LoadFromDBSwapCondApproveMap",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("count", len(g.InscriptionsValidConditionalApproveMap)),
 	)
 
 	// st = time.Now()
 	// if g.InscriptionsCommitRemoveMap, err = loader.LoadFromDBSwapCommitStateMap(nil); err != nil {
 	// 	log.Fatal("LoadFromDBSwapCommitStateMap failed: ", err)
 	// }
-	// log.Printf("LoadFromDBSwapCommitStateMap, duration: %s, count: %d",
-	// 	time.Since(st).String(),
-	// 	len(g.InscriptionsCommitRemoveMap),
+	// logger.Log.Info("LoadFromDBSwapCommitStateMap",
+	// 	zap.String("duration", time.Since(st).String()),
+	// 	zap.Int("count", len(g.InscriptionsCommitRemoveMap)),
 	// )
 
 	st = time.Now()
 	if g.InscriptionsValidCommitMap, err = loader.LoadFromDBSwapCommitMap(nil); err != nil {
 		log.Fatal("LoadFromDBSwapCommitMap failed: ", err)
 	}
-	log.Printf("LoadFromDBSwapCommitMap, duration: %s, count: %d",
-		time.Since(st).String(),
-		len(g.InscriptionsValidCommitMap),
+	logger.Log.Info("LoadFromDBSwapCommitMap",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("count", len(g.InscriptionsValidCommitMap)),
 	)
 
 	// st = time.Now()
 	// if g.InscriptionsWithdrawRemoveMap, err = loader.LoadFromDBSwapWithdrawStateMap(nil); err != nil {
 	// 	log.Fatal("LoadFromDBSwapWithdrawStateMap failed: ", err)
 	// }
-	// log.Printf("LoadFromDBSwapWithdrawStateMap, duration: %s, count: %d",
-	//    time.Since(st).String(),
-	// 	len(g.InscriptionsWithdrawRemoveMap),
+	// logger.Log.Info("LoadFromDBSwapWithdrawStateMap",
+	//    zap.String("duration", time.Since(st).String()),
+	// 	zap.Int("count", len(g.InscriptionsWithdrawRemoveMap)),
 	// )
 
 	st = time.Now()
 	if g.InscriptionsValidWithdrawMap, err = loader.LoadFromDBSwapWithdrawMap(nil); err != nil {
 		log.Fatal("LoadFromDBSwapWithdrawMap failed: ", err)
 	}
-	log.Printf("LoadFromDBSwapWithdrawMap, duration: %s, count: %d",
-		time.Since(st).String(),
-		len(g.InscriptionsValidWithdrawMap),
+	logger.Log.Info("LoadFromDBSwapWithdrawMap",
+		zap.String("duration", time.Since(st).String()),
+		zap.Int("count", len(g.InscriptionsValidWithdrawMap)),
 	)
 
 	for mid, info := range g.ModulesInfoMap {
-		log.Printf("loadFromDBSwapModuleInfo, moduleId: %s", mid)
+		logger.Log.Info("loadFromDBSwapModuleInfo",
+			zap.String("moduleId", mid),
+		)
 		loadFromDBSwapModuleInfo(mid, info)
 	}
 }
@@ -198,9 +204,9 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 	if hm, err := loader.LoadFromDBModuleHistoryMap(mid); err != nil {
 		log.Fatal("LoadFromDBModuleHistoryMap failed: ", err)
 	} else {
-		log.Printf("LoadFromDBModuleHistoryMap, duration: %s, count: %d",
-			time.Since(st).String(),
-			len(hm),
+		logger.Log.Info("LoadFromDBModuleHistoryMap",
+			zap.String("duration", time.Since(st).String()),
+			zap.Int("count", len(hm)),
 		)
 		for _, history := range hm {
 			info.History = history
@@ -211,9 +217,10 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 	if ccs, err := loader.LoadModuleCommitChain(mid, nil); err != nil {
 		log.Fatal("LoadModuleCommitChain failed: ", err)
 	} else {
-		log.Printf("LoadModuleCommitChain, duration: %s, count: %d",
-			time.Since(st).String(),
-			len(ccs))
+		logger.Log.Info("LoadModuleCommitChain",
+			zap.String("duration", time.Since(st).String()),
+			zap.Int("count", len(ccs)),
+		)
 		for _, cc := range ccs {
 			if cc.Valid && cc.Connected {
 				info.CommitIdChainMap[cc.CommitID] = struct{}{}
@@ -242,10 +249,10 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 			}
 		}
 
-		log.Printf("LoadFromDBModuleUserBalanceMap, duration: %s, count: %d, addresses: %d",
-			time.Since(st).String(),
-			len(tabm),
-			len(info.UsersTokenBalanceDataMap),
+		logger.Log.Info("LoadFromDBModuleUserBalanceMap",
+			zap.String("duration", time.Since(st).String()),
+			zap.Int("count", len(tabm)),
+			zap.Int("addresses", len(info.UsersTokenBalanceDataMap)),
 		)
 	}
 
@@ -253,9 +260,10 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 	if poolBalanceMap, err := loader.LoadFromDBModulePoolLpBalanceMap(mid, nil); err != nil {
 		log.Fatal("LoadFromDBModulePoolLpBalanceMap failed: ", err)
 	} else {
-		log.Printf("LoadFromDBModulePoolLpBalanceMap, duration: %s, count: %d",
-			time.Since(st).String(),
-			len(poolBalanceMap))
+		logger.Log.Info("LoadFromDBModulePoolLpBalanceMap",
+			zap.String("duration", time.Since(st).String()),
+			zap.Int("count", len(poolBalanceMap)),
+		)
 		info.SwapPoolTotalBalanceDataMap = poolBalanceMap
 	}
 
@@ -276,10 +284,10 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 			}
 		}
 
-		log.Printf("LoadFromDBModuleUserLpBalanceMap, duration: %s, count: %d, addresses: %d",
-			time.Since(st).String(),
-			len(userLpBalanceMap),
-			len(info.UsersLPTokenBalanceMap),
+		logger.Log.Info("LoadFromDBModuleUserLpBalanceMap",
+			zap.String("duration", time.Since(st).String()),
+			zap.Int("count", len(userLpBalanceMap)),
+			zap.Int("addresses", len(info.UsersLPTokenBalanceMap)),
 		)
 	}
 
