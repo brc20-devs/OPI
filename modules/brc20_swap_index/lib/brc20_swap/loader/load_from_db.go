@@ -702,7 +702,7 @@ WHERE t3.moved IS NULL
 			Data: &model.InscriptionBRC20Data{},
 		}
 		err := rows.Scan(
-			&height, createKey, &info.Module, &info.Tick, &info.Data.PkScript, &info.Amount,
+			&height, &createKey, &info.Module, &info.Tick, &info.Data.PkScript, &info.Amount,
 			&info.Data.InscriptionNumber, &info.Data.InscriptionId,
 			&info.Data.TxId, &info.Data.Vout, &info.Data.Satoshi, &info.Data.Offset,
 		)

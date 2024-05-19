@@ -3,6 +3,7 @@ package loader
 import (
 	"brc20query/logger"
 	"context"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"strings"
@@ -124,25 +125,46 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 
 			vout, err = strconv.ParseUint(parts[1], 10, 64)
 			if err != nil {
-				logger.Log.Debug("loadBRC20InputDataFromDBOnBatch", zap.String("inscription_id", inscription_id))
+				logger.Log.Error("parse net_satpoint parts[1]",
+					zap.String("error", err.Error()),
+					zap.String("inscription_id", inscription_id),
+					zap.String("new_satpoint", new_satpoint))
 				return datas, err
 			}
 
 			offset, err = strconv.ParseUint(parts[2], 10, 64)
 			if err != nil {
-				logger.Log.Debug("loadBRC20InputDataFromDBOnBatch", zap.String("inscription_id", inscription_id))
+				logger.Log.Error("parse net_satpoint parts[2]",
+					zap.String("error", err.Error()),
+					zap.String("inscription_id", inscription_id),
+					zap.String("new_satpoint", new_satpoint))
 				return datas, err
 			}
 		}
 
+		pkscript, err := hex.DecodeString(new_pkscript)
+		if err != nil {
+			logger.Log.Error(err.Error(),
+				zap.String("inscription_id", inscription_id),
+				zap.String("new_pkscript", new_pkscript))
+			return datas, err
+		}
+		txidBytes, err := hex.DecodeString(txid)
+		if err != nil {
+			logger.Log.Error(err.Error(),
+				zap.String("inscription_id", inscription_id),
+				zap.String("txid", txid))
+			return datas, err
+		}
+
 		data := model.InscriptionBRC20Data{
 			IsTransfer:        is_transfer,
-			TxId:              txid,
+			TxId:              string(txidBytes),
 			Idx:               uint32(inscription_number),
 			Vout:              uint32(vout),
 			Offset:            offset,
 			Satoshi:           546,
-			PkScript:          new_pkscript,
+			PkScript:          string(pkscript),
 			Fee:               0,
 			InscriptionNumber: inscription_number,
 			ContentBody:       contentBody,
