@@ -30,6 +30,10 @@ func buildSQLWhereInStr(colValsPair [][]string, startIndex ...int) (conds []stri
 		}
 
 		vals := pair[:len(pair)-1]
+		if len(vals) == 0 {
+			continue
+		}
+
 		col := pair[len(pair)-1]
 		phs := make([]string, 0, len(vals))
 		for _, val := range vals {
@@ -189,16 +193,13 @@ func UserTokensBalanceMap2TokenUsersBalanceMap(
 	// [ticker][address]balanc
 	tokenUsersMap := make(map[string]map[string]*model.BRC20TokenBalance)
 
-	// init all tickers
+	// init all ticks
 	for tick := range tokenInfos {
 		tokenUsersMap[tick] = make(map[string]*model.BRC20TokenBalance)
 	}
 
 	for pkscript, userTokensBalance := range userTokensMap {
 		for tick, balance := range userTokensBalance {
-			if _, ok := tokenUsersMap[tick]; !ok {
-				tokenUsersMap[tick] = make(map[string]*model.BRC20TokenBalance)
-			}
 			tokenUsersMap[tick][pkscript] = balance
 		}
 	}
@@ -438,10 +439,11 @@ INNER JOIN (
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 
-		if _, ok := result[tick]; !ok {
-			result[tick] = make(map[string]*model.BRC20ModuleTokenBalance)
+		lowerTiker := strings.ToLower(tick)
+		if _, ok := result[lowerTiker]; !ok {
+			result[lowerTiker] = make(map[string]*model.BRC20ModuleTokenBalance)
 		}
-		result[tick][pkscript] = &balance
+		result[lowerTiker][pkscript] = &balance
 	}
 
 	return result, nil
