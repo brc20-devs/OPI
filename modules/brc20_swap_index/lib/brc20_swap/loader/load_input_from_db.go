@@ -149,9 +149,17 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 				zap.String("new_pkscript", new_pkscript))
 			return datas, err
 		}
+		txidBytes, err := hex.DecodeString(txid)
+		if err != nil {
+			logger.Log.Error(err.Error(),
+				zap.String("inscription_id", inscription_id),
+				zap.String("txid", txid))
+			return datas, err
+		}
+
 		data := model.InscriptionBRC20Data{
 			IsTransfer:        is_transfer,
-			TxId:              txid,
+			TxId:              string(txidBytes),
 			Idx:               uint32(inscription_number),
 			Vout:              uint32(vout),
 			Offset:            offset,

@@ -75,7 +75,7 @@ VALUES ($1, $2, $3, $4, $5)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for ticker, holdersMap := range tokenUsersBalanceData {
+	for _, holdersMap := range tokenUsersBalanceData {
 		// holders
 		for _, balanceData := range holdersMap {
 			if balanceData.UpdateHeight != height {
@@ -83,7 +83,7 @@ VALUES ($1, $2, $3, $4, $5)
 			}
 
 			// save balance db
-			res, err := stmtUserBalance.Exec(height, ticker,
+			res, err := stmtUserBalance.Exec(height, balanceData.Ticker,
 				balanceData.PkScript,
 				balanceData.AvailableBalance.String(),
 				balanceData.TransferableBalance.String(),
@@ -645,7 +645,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	}
 
 	for moduleId, info := range modulesInfoMap {
-		for ticker, holdersMap := range info.TokenUsersBalanceDataMap {
+		for _, holdersMap := range info.TokenUsersBalanceDataMap {
 			// holders
 			for _, balanceData := range holdersMap {
 				if balanceData.UpdateHeight != height {
@@ -653,7 +653,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				}
 
 				// save balance db
-				res, err := stmtUserBalance.Exec(height, moduleId, ticker,
+				res, err := stmtUserBalance.Exec(height, moduleId, balanceData.Tick,
 					balanceData.PkScript,
 					balanceData.SwapAccountBalance.String(),
 					balanceData.AvailableBalance.String(),
