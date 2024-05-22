@@ -25,17 +25,17 @@ func (g *BRC20ModuleIndexer) PurgeHistoricalData() {
 }
 
 func (g *BRC20ModuleIndexer) SaveDataToDB(height uint32) {
-	tx := loader.MustBegin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-			panic(r)
-		} else {
-			if err := tx.Commit(); err != nil {
-				log.Fatal("SaveDataToDB tx commit failed: ", err)
-			}
-		}
-	}()
+	tx, err := loader.SwapDB.Begin()
+	if err != nil {
+		log.Panic("PG Begin Wrong: ", err)
+	}
+	defer tx.Rollback()
+
+	brc20Tx, err := loader.BRC20DB.Begin()
+	if err != nil {
+		log.Panic("PG Begin Wrong: ", err)
+	}
+	defer brc20Tx.Rollback()
 
 	// ticker info
 	loader.SaveDataToDBTickerInfoMap(tx, height, g.InscriptionsTickerInfoMap)
@@ -64,6 +64,15 @@ func (g *BRC20ModuleIndexer) SaveDataToDB(height uint32) {
 
 	loader.SaveDataToDBSwapWithdrawStateMap(tx, height, g.InscriptionsWithdrawRemoveMap)
 	loader.SaveDataToDBSwapWithdrawMap(tx, height, g.InscriptionsValidWithdrawMap)
+
+	loader.SaveDataToBRC20DBSwapWithdrawMap(brc20Tx, height, g.InscriptionsValidWithdrawMap)
+
+	if err := tx.Commit(); err != nil {
+		log.Panic("tx commit error: ", err)
+	}
+	if err := brc20Tx.Commit(); err != nil {
+		log.Panic("brc20Tx commit error: ", err)
+	}
 }
 
 func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {

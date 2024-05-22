@@ -15,12 +15,37 @@ import (
 	"go.uber.org/zap"
 )
 
+func mustGetEnv(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Fatalf("missing environment variable %s", key)
+	}
+	return val
+}
+
 var (
-	DB_CONF_USER     = os.Getenv("DB_USER")
-	DB_CONF_HOST     = os.Getenv("DB_HOST")
-	DB_CONF_PORT     = os.Getenv("DB_PORT")
-	DB_CONF_DATABASE = os.Getenv("DB_DATABASE")
-	DB_CONF_PASSWD   = os.Getenv("DB_PASSWD")
+	// brc20-swap module indexer database
+	DB_CONF_USER     = mustGetEnv("DB_USER")
+	DB_CONF_HOST     = mustGetEnv("DB_HOST")
+	DB_CONF_PORT     = mustGetEnv("DB_PORT")
+	DB_CONF_DATABASE = mustGetEnv("DB_DATABASE")
+	DB_CONF_PASSWD   = mustGetEnv("DB_PASSWD")
+
+	// brc20 indexer database
+	// write withdraw
+	BRC20_DB_CONF_USER     = mustGetEnv("DB_BRC20PROTOCOL_USER")
+	BRC20_DB_CONF_HOST     = mustGetEnv("DB_BRC20PROTOCOL_HOST")
+	BRC20_DB_CONF_PORT     = mustGetEnv("DB_BRC20PROTOCOL_PORT")
+	BRC20_DB_CONF_DATABASE = mustGetEnv("DB_BRC20PROTOCOL_DATABASE")
+	BRC20_DB_CONF_PASSWD   = mustGetEnv("DB_BRC20PROTOCOL_PASSWD")
+
+	// main indexer database
+	// read events
+	META_DB_CONF_USER     = mustGetEnv("DB_METAPROTOCOL_USER")
+	META_DB_CONF_HOST     = mustGetEnv("DB_METAPROTOCOL_HOST")
+	META_DB_CONF_PORT     = mustGetEnv("DB_METAPROTOCOL_PORT")
+	META_DB_CONF_DATABASE = mustGetEnv("DB_METAPROTOCOL_DATABASE")
+	META_DB_CONF_PASSWD   = mustGetEnv("DB_METAPROTOCOL_PASSWD")
 )
 
 // ProcessUpdateLatestBRC20SwapInit
@@ -29,23 +54,29 @@ func ProcessUpdateLatestBRC20SwapInit(ctx context.Context, startHeight, endHeigh
 	brc20DatasDump := make(chan interface{}, 10240)
 	brc20DatasParse := make(chan *brc20swapModel.InscriptionBRC20Data, 10240)
 
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE)
-	brc20swapLoader.Init(psqlInfo)
+	brc20swapLoader.Init(fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		DB_CONF_HOST, DB_CONF_PORT, DB_CONF_USER, DB_CONF_PASSWD, DB_CONF_DATABASE))
+	brc20swapLoader.InitBRC20DB(fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		BRC20_DB_CONF_HOST, BRC20_DB_CONF_PORT, BRC20_DB_CONF_USER, BRC20_DB_CONF_PASSWD, BRC20_DB_CONF_DATABASE))
+	brc20swapLoader.InitMetaDB(fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		META_DB_CONF_HOST, META_DB_CONF_PORT, META_DB_CONF_USER, META_DB_CONF_PASSWD, META_DB_CONF_DATABASE))
 
-	dbHeight, err := brc20swapLoader.GetBrc20LatestHeightFromDB()
-	if err != nil {
-		log.Panicf("get db height error: %v", err)
-	}
-	if dbHeight > startHeight {
-		startHeight = int(dbHeight) + 1
-	}
-
-	go func() {
-		if err := brc20swapLoader.LoadBRC20InputDataFromDB(ctx, brc20DatasLoad, startHeight, endHeight); err != nil {
-			log.Panicf("load input data from db error: %v", err)
+	{
+		dbHeight, err := brc20swapLoader.GetBrc20LatestHeightFromDB()
+		if err != nil {
+			log.Panicf("get db height error: %v", err)
 		}
-		close(brc20DatasLoad)
-	}()
+		if dbHeight > startHeight {
+			startHeight = int(dbHeight) + 1
+		}
+
+		go func() {
+			if err := brc20swapLoader.LoadBRC20InputDataFromDB(ctx, brc20DatasLoad, startHeight, endHeight); err != nil {
+				log.Panicf("load input data from db error: %v", err)
+			}
+			close(brc20DatasLoad)
+		}()
+	}
 
 	go func() {
 		for data := range brc20DatasLoad {

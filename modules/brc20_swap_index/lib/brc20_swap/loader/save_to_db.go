@@ -9,7 +9,11 @@ import (
 	"github.com/unisat-wallet/libbrc20-indexer/model"
 )
 
-var SwapDB *sql.DB
+var (
+	SwapDB  *sql.DB
+	MetaDB  *sql.DB
+	BRC20DB *sql.DB
+)
 
 func Init(psqlInfo string) {
 	var err error
@@ -17,9 +21,40 @@ func Init(psqlInfo string) {
 	if err != nil {
 		log.Panic("Connect PG Failed: ", err)
 	}
+	if err := SwapDB.Ping(); err != nil {
+		log.Panic("Ping SwapDB Failed: ", err)
+	}
 
 	SwapDB.SetMaxOpenConns(2000)
 	SwapDB.SetMaxIdleConns(1000)
+}
+
+func InitMetaDB(psqlInfo string) {
+	var err error
+	MetaDB, err = sql.Open("postgres", psqlInfo)
+	if err != nil {
+		log.Panic("Connect PG Failed: ", err)
+	}
+	if err := MetaDB.Ping(); err != nil {
+		log.Panic("Ping MetaDB Failed: ", err)
+	}
+
+	MetaDB.SetMaxOpenConns(2000)
+	MetaDB.SetMaxIdleConns(1000)
+}
+
+func InitBRC20DB(psqlInfo string) {
+	var err error
+	BRC20DB, err = sql.Open("postgres", psqlInfo)
+	if err != nil {
+		log.Panic("Connect PG Failed: ", err)
+	}
+	if err := BRC20DB.Ping(); err != nil {
+		log.Panic("Ping BRC20DB Failed: ", err)
+	}
+
+	BRC20DB.SetMaxOpenConns(2000)
+	BRC20DB.SetMaxIdleConns(1000)
 }
 
 func MustBegin() *sql.Tx {
@@ -516,8 +551,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		if _, err := res.RowsAffected(); err != nil {
 			log.Panic("PG Affecte Wrong: ", err)
 		}
-	}
 
+	}
 }
 
 // commit
@@ -764,4 +799,30 @@ func SaveDataToDBModuleTickInfoMap(moduleId string, condStateBalanceDataMap map[
 	}
 
 	fmt.Printf("\n")
+}
+
+func SaveDataToBRC20DBSwapWithdrawMap(tx *sql.Tx, height uint32,
+	inscriptionsValidWithdrawMap map[string]*model.InscriptionBRC20SwapInfo,
+) {
+	stmtValidWithdraw, err := tx.Prepare(`
+INSERT INTO brc20_module_withdrawals(block_height, inscription_id) VALUES ($1, $2)
+`)
+	if err != nil {
+		log.Panic("SaveDataToBRC20DBSwapWithdrawMap, PG Statements Wrong: ", err)
+	}
+
+	for _, withdrawInfo := range inscriptionsValidWithdrawMap {
+		if withdrawInfo.Data.Height != height {
+			continue
+		}
+
+		res, err := stmtValidWithdraw.Exec(height, withdrawInfo.Data.GetInscriptionId())
+		if err != nil {
+			log.Panic("PG Statements Exec Wrong: ", err)
+		}
+
+		if _, err := res.RowsAffected(); err != nil {
+			log.Panic("PG Affecte Wrong: ", err)
+		}
+	}
 }

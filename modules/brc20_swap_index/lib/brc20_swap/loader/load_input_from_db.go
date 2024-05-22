@@ -16,7 +16,7 @@ import (
 func LoadBRC20InputDataFromDB(ctx context.Context, brc20Datas chan *model.InscriptionBRC20Data, startHeight int, endHeight int) error {
 	logger.Log.Info("LoadBRC20InputDataFromDB", zap.Int("startHeight", startHeight), zap.Int("endHeight", endHeight))
 
-	row := SwapDB.QueryRow(`select block_height from block_hashes order by block_height desc limit 1;`)
+	row := MetaDB.QueryRow(`select block_height from block_hashes order by block_height desc limit 1;`)
 	var metaMaxHeight int
 	if err := row.Scan(&metaMaxHeight); err != nil {
 		return err
@@ -74,7 +74,7 @@ WHERE ts.block_height = %d AND n2id.cursed_for_brc20 = false
 ORDER BY ts.id LIMIT %d OFFSET %d
 `, height, queryLimit, queryOffset)
 
-	rows, err := SwapDB.Query(sql)
+	rows, err := MetaDB.Query(sql)
 	if err != nil {
 		return nil, err
 	}
