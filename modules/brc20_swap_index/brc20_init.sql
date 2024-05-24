@@ -2,7 +2,7 @@
 CREATE TABLE public.brc20_ticker_info (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    tick varchar(5) NOT NULL,
+    tick text NOT NULL,
 	 max_supply numeric(40) NOT NULL,
 	 decimals int4 NOT NULL,
 	 limit_per_mint numeric(40) NOT NULL,
@@ -16,7 +16,7 @@ CREATE INDEX brc20_ticker_info_tick_idx ON public.brc20_ticker_info USING btree 
 CREATE TABLE public.brc20_user_balance (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-	 tick varchar(5) NOT NULL,
+	 tick text NOT NULL,
 	 pkscript bytea NOT NULL,
 	 available_balance numeric(40) NOT NULL,
 	 transferable_balance numeric(40) NOT NULL
@@ -40,7 +40,7 @@ CREATE TABLE public.brc20_valid_transfer (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     create_key bytea NOT NULL,
-	tick varchar(5) NOT NULL,
+	tick text NOT NULL,
 	pkscript bytea NOT NULL,
 	amount numeric(40) NOT NULL,
 	inscription_number int8 NOT NULL,
@@ -57,7 +57,7 @@ CREATE INDEX brc20_valid_transfer_pkscript_tick_idx ON public.brc20_valid_transf
 CREATE TABLE public.brc20_history (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
-    tick varchar(5) NOT NULL,
+    tick text NOT NULL,
     history_type smallint NOT NULL,
     valid boolean,
     txid bytea NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE public.brc20_swap_info (
     pkscript_sequencer bytea NOT NULL,
     pkscript_gas_to bytea NOT NULL,
     pkscript_lp_fee bytea NOT NULL,
-	 gas_tick varchar(5) NOT NULL,
+	 gas_tick text NOT NULL,
     fee_rate_swap text NOT NULL
 );
 CREATE INDEX brc20_swap_info_block_height_idx ON public.brc20_swap_info USING btree (block_height);
@@ -142,7 +142,7 @@ CREATE TABLE public.brc20_swap_user_balance (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
-	 tick varchar(5) NOT NULL,
+	 tick text NOT NULL,
 	 pkscript bytea NOT NULL,
 	 swap_balance numeric(40) NOT NULL,
 	 available_balance numeric(40) NOT NULL,
@@ -172,7 +172,7 @@ CREATE TABLE public.brc20_swap_valid_approve (
     block_height int4 NOT NULL,
     create_key bytea NOT NULL,
     module_id text NOT NULL,
-	tick varchar(5) NOT NULL,
+	tick text NOT NULL,
 	pkscript bytea NOT NULL,
 	amount numeric(40) NOT NULL,
 	inscription_number int8 NOT NULL,
@@ -206,7 +206,7 @@ CREATE TABLE public.brc20_swap_valid_cond_approve (
     block_height int4 NOT NULL,
     create_key bytea NOT NULL,
     module_id text NOT NULL,
-	 tick varchar(5) NOT NULL,
+	 tick text NOT NULL,
 	 pkscript bytea NOT NULL,
 	 amount numeric(40) NOT NULL,
 	 inscription_number int8 NOT NULL,
@@ -236,7 +236,7 @@ CREATE TABLE public.brc20_swap_valid_withdraw (
     block_height int4 NOT NULL,
     create_key bytea NOT NULL,
     module_id text NOT NULL,
-	 tick varchar(5) NOT NULL,
+	 tick text NOT NULL,
 	 pkscript bytea NOT NULL,
 	 amount numeric(40) NOT NULL,
 	 inscription_number int8 NOT NULL,
@@ -254,7 +254,7 @@ CREATE TABLE public.brc20_swap_user_lp_balance (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
-	pool varchar(11) NOT NULL,
+	pool text NOT NULL,
 	pkscript bytea NOT NULL,
 	lp_balance numeric(40) NOT NULL
 );
@@ -266,10 +266,10 @@ CREATE TABLE public.brc20_swap_pool_balance (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
-    pool varchar(9) NOT NULL,
-	tick0 varchar(5) NOT NULL,
+    pool text NOT NULL,
+	tick0 text NOT NULL,
 	tick0_balance numeric(40) NOT NULL,
-	tick1 varchar(5) NOT NULL,
+	tick1 text NOT NULL,
 	tick1_balance numeric(40) NOT NULL,
 	lp_balance numeric(40) NOT NULL
 );
@@ -308,7 +308,7 @@ CREATE TABLE public.brc20_swap_stats (
     id bigserial NOT NULL,
     block_height int4 NOT NULL,
     module_id text NOT NULL,
-	 tick varchar(5) NOT NULL,
+	 tick text NOT NULL,
 	 deposit_balance numeric(40) NOT NULL
 );
 CREATE INDEX brc20_swap_stats_block_height_idx ON public.brc20_swap_stats USING btree (block_height);
