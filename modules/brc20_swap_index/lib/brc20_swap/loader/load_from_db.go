@@ -170,11 +170,14 @@ INNER JOIN (
 			decimals = info.Deploy.Decimal
 		}
 
+		ab := decimal.MustNewDecimalFromString(available, decimal.MAX_PRECISION)
+		tb := decimal.MustNewDecimalFromString(transferable, decimal.MAX_PRECISION)
+
 		balance := &model.BRC20TokenBalance{
 			Ticker:              tick,
 			PkScript:            pkscript,
-			AvailableBalance:    decimal.MustNewDecimalFromString(available, int(decimals)),
-			TransferableBalance: decimal.MustNewDecimalFromString(transferable, int(decimals)),
+			AvailableBalance:    ab.NewPrecition(uint(decimals)),
+			TransferableBalance: tb.NewPrecition(uint(decimals)),
 		}
 
 		if _, ok := userTokensBalanceMap[pkscript]; !ok {

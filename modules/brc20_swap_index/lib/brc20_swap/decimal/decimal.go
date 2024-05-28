@@ -241,6 +241,22 @@ func (d *Decimal) Div(other *Decimal) *Decimal {
 	return &Decimal{Precition: d.Precition, Val: value}
 }
 
+func (d *Decimal) NewPrecition(p uint) *Decimal {
+	if d == nil {
+		return nil
+	}
+
+	c := int64(d.Precition) - int64(p)
+	if c == 0 {
+		return d
+	} else if c < 0 {
+		panic(fmt.Errorf("precition must be less"))
+	}
+
+	val := new(big.Int).Div(d.Val, precisionFactor[c])
+	return &Decimal{Precition: p, Val: val}
+}
+
 func (d *Decimal) Cmp(other *Decimal) int {
 	if d == nil && other == nil {
 		return 0
