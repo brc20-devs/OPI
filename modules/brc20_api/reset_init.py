@@ -25,7 +25,6 @@ if init_env:
   API_HOST="127.0.0.1"
   API_PORT="8000"
   API_TRUSTED_PROXY_CNT="0"
-  NETWORK = "mainnet"
   print("Initialising .env file")
   print("leave blank to use default values")
   use_other_env = False
@@ -75,9 +74,6 @@ if init_env:
   res = input("API trusted proxy count (Default: 0) if there are known proxies such as nginx in front of API, set this to the number of proxies: ")
   if res != '':
     API_TRUSTED_PROXY_CNT = res
-  res = input("Bitcoin network (Default: mainnet), select mainnet, testnet or regtest: ")
-  if res != '':
-    NETWORK = res
   f = open('.env', 'w')
   f.write("DB_USER=\"" + DB_USER + "\"\n")
   f.write("DB_HOST=\"" + DB_HOST + "\"\n")
@@ -90,5 +86,4 @@ if init_env:
   f.write("API_HOST=\"" + API_HOST + "\"\n")
   f.write("API_PORT=\"" + API_PORT + "\"\n")
   f.write("API_TRUSTED_PROXY_CNT=\"" + API_TRUSTED_PROXY_CNT + "\"\n")
-  f.write("NETWORK=\"" + NETWORK + "\"\n")
   f.close()
