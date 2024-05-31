@@ -16,22 +16,18 @@ import (
 )
 
 func (g *BRC20ModuleIndexer) GetWithdrawInfoByKey(createIdxKey string) (
-	withdrawInfo *model.InscriptionBRC20SwapInfo, isInvalid bool) {
+	withdrawInfo *model.InscriptionBRC20SwapInfo) {
 	var ok bool
 	// withdraw
-	withdrawInfo, ok = g.InscriptionsValidWithdrawMap[createIdxKey]
+	withdrawInfo, ok = g.InscriptionsWithdrawMap[createIdxKey]
 	if !ok {
-		withdrawInfo, ok = g.InscriptionsInvalidWithdrawMap[createIdxKey]
-		if !ok {
-			withdrawInfo = nil
-		}
-		isInvalid = true
+		withdrawInfo = nil
 	}
 
-	return withdrawInfo, isInvalid
+	return withdrawInfo
 }
 
-func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, withdrawInfo *model.InscriptionBRC20SwapInfo, isInvalid bool) error {
+func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, withdrawInfo *model.InscriptionBRC20SwapInfo) error {
 	// ticker
 	uniqueLowerTicker := strings.ToLower(withdrawInfo.Tick)
 	tokenInfo, ok := g.InscriptionsTickerInfoMap[uniqueLowerTicker]
@@ -49,6 +45,8 @@ func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, w
 		)
 		return errors.New("withdraw, module invalid")
 	}
+
+	var isInvalid bool
 
 	// global history fixme
 	// if g.EnableHistory {
@@ -92,6 +90,15 @@ func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, w
 		return errors.New("withdraw, send from withdraw missing(dup)")
 	}
 
+	// available > amt
+	balanceWithdraw := withdrawInfo.Amount
+	fromTokenBalance.WithdrawAmount = fromTokenBalance.WithdrawAmount.Sub(balanceWithdraw)
+	fromTokenBalance.UpdateHeight = data.Height
+
+	if fromTokenBalance.AvailableBalance.Cmp(balanceWithdraw) < 0 { // invalid
+		isInvalid = true
+	}
+
 	// to address
 	receiverPkScript := string(data.PkScript)
 	if data.Satoshi == 0 {
@@ -114,9 +121,10 @@ func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, w
 	}
 
 	// set from
-	fromTokenBalance.UpdateHeight = data.Height
+	// The available balance here needs to be directly deducted and transferred to WithdrawableBalance.
+	fromTokenBalance.AvailableBalanceSafe = fromTokenBalance.AvailableBalanceSafe.Sub(balanceWithdraw)
+	fromTokenBalance.AvailableBalance = fromTokenBalance.AvailableBalance.Sub(balanceWithdraw)
 
-	fromTokenBalance.WithdrawableBalance = fromTokenBalance.WithdrawableBalance.Sub(withdrawInfo.Amount)
 	delete(fromTokenBalance.ValidWithdrawMap, data.CreateIdxKey)
 
 	fromHistory := model.NewBRC20ModuleHistory(true, constant.BRC20_HISTORY_MODULE_TYPE_N_WITHDRAW_FROM, withdrawInfo.Data, data, nil, true)
@@ -220,17 +228,11 @@ func (g *BRC20ModuleIndexer) ProcessInscribeWithdraw(data *model.InscriptionBRC2
 
 	// Check if the module balance is sufficient to withdraw
 	moduleTokenBalance := moduleInfo.GetUserTokenBalance(withdrawInfo.Tick, data.PkScript)
-	// available > amt
-	if moduleTokenBalance.AvailableBalance.Cmp(balanceWithdraw) < 0 { // invalid
-		history.Valid = false
-		g.InscriptionsInvalidWithdrawMap[data.CreateIdxKey] = withdrawInfo
-	} else {
-		history.Valid = true
-		// The available balance here needs to be directly deducted and transferred to WithdrawableBalance.
-		moduleTokenBalance.AvailableBalanceSafe = moduleTokenBalance.AvailableBalanceSafe.Sub(balanceWithdraw)
-		moduleTokenBalance.AvailableBalance = moduleTokenBalance.AvailableBalance.Sub(balanceWithdraw)
-		moduleTokenBalance.WithdrawableBalance = moduleTokenBalance.WithdrawableBalance.Add(balanceWithdraw)
+	{
 
+		moduleTokenBalance.WithdrawAmount = moduleTokenBalance.WithdrawAmount.Add(balanceWithdraw)
+
+		history.Valid = true
 		// Update personal withdraw lookup table ValidWithdrawMap
 		if moduleTokenBalance.ValidWithdrawMap == nil {
 			moduleTokenBalance.ValidWithdrawMap = make(map[string]*model.InscriptionBRC20Data, 1)
@@ -239,8 +241,7 @@ func (g *BRC20ModuleIndexer) ProcessInscribeWithdraw(data *model.InscriptionBRC2
 
 		moduleTokenBalance.UpdateHeight = data.Height
 		// Update global withdraw lookup table
-		g.InscriptionsValidWithdrawMap[data.CreateIdxKey] = withdrawInfo
-
+		g.InscriptionsWithdrawMap[data.CreateIdxKey] = withdrawInfo
 		// g.InscriptionsValidBRC20DataMap[data.CreateIdxKey] = withdrawInfo.Data  // fixme
 	}
 

@@ -672,7 +672,7 @@ func SaveDataToDBModuleUserBalanceMap(tx *sql.Tx, height uint32,
 
 	stmtUserBalance, err := tx.Prepare(`
 INSERT INTO brc20_swap_user_balance(block_height, module_id, tick,
-	pkscript, swap_balance, available_balance, approveable_balance, cond_approveable_balance, withdrawable_balance)
+	pkscript, swap_balance, available_balance, approveable_balance, cond_approveable_balance, withdraw_amount)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `)
 	if err != nil {
@@ -694,7 +694,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 					balanceData.AvailableBalance.String(),
 					balanceData.ApproveableBalance.String(),
 					balanceData.CondApproveableBalance.String(),
-					balanceData.WithdrawableBalance.String(),
+					balanceData.WithdrawAmount.String(),
 				)
 				if err != nil {
 					log.Panic("PG Statements Exec Wrong: ", err)

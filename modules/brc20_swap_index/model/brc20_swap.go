@@ -80,7 +80,7 @@ type BRC20ModuleTickerStatusInfoOfAddressResp struct {
 	AvailableBalance       string `json:"availableBalance"`
 	ApproveableBalance     string `json:"approveableBalance"`
 	CondApproveableBalance string `json:"condApproveableBalance"`
-	WithdrawableBalance    string `json:"withdrawableBalance"`
+	WithdrawAmount         string `json:"withdrawAmount"`
 
 	HistoryCount int `json:"historyCount"`
 }

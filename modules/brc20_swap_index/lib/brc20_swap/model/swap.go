@@ -623,7 +623,7 @@ type BRC20ModuleTokenBalance struct {
 	AvailableBalance       *decimal.Decimal
 	ApproveableBalance     *decimal.Decimal
 	CondApproveableBalance *decimal.Decimal
-	WithdrawableBalance    *decimal.Decimal
+	WithdrawAmount         *decimal.Decimal
 
 	ValidConditionalApproveMap map[string]*InscriptionBRC20Data
 	ValidApproveMap            map[string]*InscriptionBRC20Data
@@ -639,8 +639,7 @@ func (b *BRC20ModuleTokenBalance) String() string {
 func (bal *BRC20ModuleTokenBalance) ModuleBalance() *decimal.Decimal {
 	return bal.AvailableBalance.Add(
 		bal.ApproveableBalance).Add(
-		bal.CondApproveableBalance).Add(
-		bal.WithdrawableBalance)
+		bal.CondApproveableBalance)
 }
 
 func (in *BRC20ModuleTokenBalance) DeepCopy() *BRC20ModuleTokenBalance {
@@ -658,7 +657,7 @@ func (in *BRC20ModuleTokenBalance) DeepCopy() *BRC20ModuleTokenBalance {
 
 		ApproveableBalance:     decimal.NewDecimalCopy(in.ApproveableBalance),
 		CondApproveableBalance: decimal.NewDecimalCopy(in.CondApproveableBalance),
-		WithdrawableBalance:    decimal.NewDecimalCopy(in.WithdrawableBalance),
+		WithdrawAmount:         decimal.NewDecimalCopy(in.WithdrawAmount),
 
 		ValidConditionalApproveMap: make(map[string]*InscriptionBRC20Data, len(in.ValidConditionalApproveMap)),
 		ValidApproveMap:            make(map[string]*InscriptionBRC20Data, len(in.ValidApproveMap)),
@@ -702,7 +701,7 @@ func (in *BRC20ModuleTokenBalance) CherryPick() *BRC20ModuleTokenBalance {
 
 		ApproveableBalance:     decimal.NewDecimalCopy(in.ApproveableBalance),
 		CondApproveableBalance: decimal.NewDecimalCopy(in.CondApproveableBalance),
-		WithdrawableBalance:    decimal.NewDecimalCopy(in.WithdrawableBalance),
+		WithdrawAmount:         decimal.NewDecimalCopy(in.WithdrawAmount),
 	}
 	return tb
 }

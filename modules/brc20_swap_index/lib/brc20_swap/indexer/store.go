@@ -63,9 +63,9 @@ func (g *BRC20ModuleIndexer) SaveDataToDB(height uint32) {
 	loader.SaveDataToDBSwapCommitMap(tx, height, g.InscriptionsValidCommitMap)
 
 	loader.SaveDataToDBSwapWithdrawStateMap(tx, height, g.InscriptionsWithdrawRemoveMap)
-	loader.SaveDataToDBSwapWithdrawMap(tx, height, g.InscriptionsValidWithdrawMap)
+	loader.SaveDataToDBSwapWithdrawMap(tx, height, g.InscriptionsWithdrawMap)
 
-	loader.SaveDataToBRC20DBSwapWithdrawMap(brc20Tx, height, g.InscriptionsValidWithdrawMap)
+	loader.SaveDataToBRC20DBSwapWithdrawMap(brc20Tx, height, g.InscriptionsWithdrawMap)
 
 	if err := tx.Commit(); err != nil {
 		log.Panic("tx commit error: ", err)
@@ -192,12 +192,12 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
 	// )
 
 	st = time.Now()
-	if g.InscriptionsValidWithdrawMap, err = loader.LoadFromDBSwapWithdrawMap(nil); err != nil {
+	if g.InscriptionsWithdrawMap, err = loader.LoadFromDBSwapWithdrawMap(nil); err != nil {
 		log.Fatal("LoadFromDBSwapWithdrawMap failed: ", err)
 	}
 	logger.Log.Info("LoadFromDBSwapWithdrawMap",
 		zap.String("duration", time.Since(st).String()),
-		zap.Int("count", len(g.InscriptionsValidWithdrawMap)),
+		zap.Int("count", len(g.InscriptionsWithdrawMap)),
 	)
 
 	for mid, info := range g.ModulesInfoMap {
