@@ -65,7 +65,7 @@ func (g *BRC20ModuleIndexer) SaveDataToDB(height uint32) {
 	loader.SaveDataToDBSwapWithdrawStateMap(tx, height, g.InscriptionsWithdrawRemoveMap)
 	loader.SaveDataToDBSwapWithdrawMap(tx, height, g.InscriptionsWithdrawMap)
 
-	loader.SaveDataToBRC20DBSwapWithdrawMap(brc20Tx, height, g.InscriptionsWithdrawMap)
+	loader.SaveDataToBRC20DBSwapWithdrawMap(brc20Tx, height, g.InscriptionsValidWithdrawMap)
 
 	if err := tx.Commit(); err != nil {
 		log.Panic("tx commit error: ", err)

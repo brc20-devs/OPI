@@ -415,7 +415,7 @@ func LoadFromDBModuleUserBalanceMap(moduleId string, ticks []string, pkscripts [
 
 	query := fmt.Sprintf(`
 SELECT t1.module_id, t1.tick, t1.pkscript, t1.swap_balance, t1.available_balance,
-	t1.approveable_balance, t1.cond_approveable_balance, t1.withdraw_amount
+	t1.approveable_balance, t1.cond_approveable_balance, t1.ready_to_withdraw_amount
 FROM brc20_swap_user_balance t1
 INNER JOIN (
 	SELECT MAX(block_height) as block_height, tick, pkscript
@@ -437,7 +437,7 @@ INNER JOIN (
 	for rows.Next() {
 		var moduleId, tick, pkscript string
 		var balance model.BRC20ModuleTokenBalance
-		err := rows.Scan(&moduleId, &tick, &pkscript, &balance.SwapAccountBalance, &balance.AvailableBalance, &balance.ApproveableBalance, &balance.CondApproveableBalance, &balance.WithdrawAmount)
+		err := rows.Scan(&moduleId, &tick, &pkscript, &balance.SwapAccountBalance, &balance.AvailableBalance, &balance.ApproveableBalance, &balance.CondApproveableBalance, &balance.ReadyToWithdrawAmount)
 		if err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}

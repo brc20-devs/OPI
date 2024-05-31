@@ -82,7 +82,7 @@ func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, w
 	}
 
 	// Cross-check whether the withdraw-inscription exists.
-	if _, ok := fromTokenBalance.ValidWithdrawMap[data.CreateIdxKey]; !ok {
+	if _, ok := fromTokenBalance.ReadyToWithdrawMap[data.CreateIdxKey]; !ok {
 		log.Printf("ProcessBRC20Withdraw send from withdraw missing(dup withdraw?). height: %d, txidx: %d",
 			data.Height,
 			data.TxIdx,
@@ -92,7 +92,8 @@ func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, w
 
 	// available > amt
 	balanceWithdraw := withdrawInfo.Amount
-	fromTokenBalance.WithdrawAmount = fromTokenBalance.WithdrawAmount.Sub(balanceWithdraw)
+	fromTokenBalance.ReadyToWithdrawAmount = fromTokenBalance.ReadyToWithdrawAmount.Sub(balanceWithdraw)
+	delete(fromTokenBalance.ReadyToWithdrawMap, data.CreateIdxKey)
 	fromTokenBalance.UpdateHeight = data.Height
 
 	if fromTokenBalance.AvailableBalance.Cmp(balanceWithdraw) < 0 { // invalid
@@ -124,8 +125,6 @@ func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, w
 	// The available balance here needs to be directly deducted and transferred to WithdrawableBalance.
 	fromTokenBalance.AvailableBalanceSafe = fromTokenBalance.AvailableBalanceSafe.Sub(balanceWithdraw)
 	fromTokenBalance.AvailableBalance = fromTokenBalance.AvailableBalance.Sub(balanceWithdraw)
-
-	delete(fromTokenBalance.ValidWithdrawMap, data.CreateIdxKey)
 
 	fromHistory := model.NewBRC20ModuleHistory(true, constant.BRC20_HISTORY_MODULE_TYPE_N_WITHDRAW_FROM, withdrawInfo.Data, data, nil, true)
 	fromTokenBalance.History = append(fromTokenBalance.History, fromHistory)
@@ -230,14 +229,14 @@ func (g *BRC20ModuleIndexer) ProcessInscribeWithdraw(data *model.InscriptionBRC2
 	moduleTokenBalance := moduleInfo.GetUserTokenBalance(withdrawInfo.Tick, data.PkScript)
 	{
 
-		moduleTokenBalance.WithdrawAmount = moduleTokenBalance.WithdrawAmount.Add(balanceWithdraw)
+		moduleTokenBalance.ReadyToWithdrawAmount = moduleTokenBalance.ReadyToWithdrawAmount.Add(balanceWithdraw)
 
 		history.Valid = true
-		// Update personal withdraw lookup table ValidWithdrawMap
-		if moduleTokenBalance.ValidWithdrawMap == nil {
-			moduleTokenBalance.ValidWithdrawMap = make(map[string]*model.InscriptionBRC20Data, 1)
+		// Update personal withdraw lookup table ReadyToWithdrawMap
+		if moduleTokenBalance.ReadyToWithdrawMap == nil {
+			moduleTokenBalance.ReadyToWithdrawMap = make(map[string]*model.InscriptionBRC20Data, 1)
 		}
-		moduleTokenBalance.ValidWithdrawMap[data.CreateIdxKey] = data
+		moduleTokenBalance.ReadyToWithdrawMap[data.CreateIdxKey] = data
 
 		moduleTokenBalance.UpdateHeight = data.Height
 		// Update global withdraw lookup table

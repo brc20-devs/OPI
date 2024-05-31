@@ -215,7 +215,7 @@ func GetBRC20ModuleTickerInfoByAddress(pkScript []byte, module, ticker string) (
 		AvailableBalance:       "0",
 		ApproveableBalance:     "0",
 		CondApproveableBalance: "0",
-		WithdrawAmount:         "0",
+		ReadyToWithdrawAmount:  "0",
 
 		HistoryCount: 0,
 	}
@@ -242,7 +242,7 @@ func GetBRC20ModuleTickerInfoByAddress(pkScript []byte, module, ticker string) (
 	nftRsp.AvailableBalance = tokenInfo.AvailableBalance.String()
 	nftRsp.CondApproveableBalance = tokenInfo.CondApproveableBalance.String()
 	nftRsp.ApproveableBalance = tokenInfo.ApproveableBalance.String()
-	nftRsp.WithdrawAmount = tokenInfo.WithdrawAmount.String()
+	nftRsp.ReadyToWithdrawAmount = tokenInfo.ReadyToWithdrawAmount.String()
 
 	nftRsp.HistoryCount = 0
 	return nftRsp, nil

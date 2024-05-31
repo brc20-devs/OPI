@@ -694,7 +694,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 					balanceData.AvailableBalance.String(),
 					balanceData.ApproveableBalance.String(),
 					balanceData.CondApproveableBalance.String(),
-					balanceData.WithdrawAmount.String(),
+					balanceData.ReadyToWithdrawAmount.String(),
 				)
 				if err != nil {
 					log.Panic("PG Statements Exec Wrong: ", err)
@@ -802,7 +802,7 @@ func SaveDataToDBModuleTickInfoMap(moduleId string, condStateBalanceDataMap map[
 }
 
 func SaveDataToBRC20DBSwapWithdrawMap(tx *sql.Tx, height uint32,
-	inscriptionsValidWithdrawMap map[string]*model.InscriptionBRC20SwapInfo,
+	inscriptionsValidWithdrawMap map[string]uint32,
 ) {
 	stmtValidWithdraw, err := tx.Prepare(`
 INSERT INTO brc20_module_withdrawals(block_height, inscription_id) VALUES ($1, $2)
@@ -811,12 +811,12 @@ INSERT INTO brc20_module_withdrawals(block_height, inscription_id) VALUES ($1, $
 		log.Panic("SaveDataToBRC20DBSwapWithdrawMap, PG Statements Wrong: ", err)
 	}
 
-	for _, withdrawInfo := range inscriptionsValidWithdrawMap {
-		if withdrawInfo.Data.Height != height {
+	for inscriptionId, withdrawHeight := range inscriptionsValidWithdrawMap {
+		if withdrawHeight != height {
 			continue
 		}
 
-		res, err := stmtValidWithdraw.Exec(height, withdrawInfo.Data.GetInscriptionId())
+		res, err := stmtValidWithdraw.Exec(height, inscriptionId)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)
 		}
