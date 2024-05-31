@@ -118,7 +118,7 @@ func (g *BRC20ModuleIndexer) ProcessWithdraw(data *model.InscriptionBRC20Data, w
 		// from invalid history
 		fromHistory := model.NewBRC20ModuleHistory(true, constant.BRC20_HISTORY_MODULE_TYPE_N_WITHDRAW_FROM, withdrawInfo.Data, data, nil, false)
 		fromTokenBalance.History = append(fromTokenBalance.History, fromHistory)
-		return nil
+		return errors.New("withdraw, insufficient available balance")
 	}
 
 	// set from
