@@ -16,9 +16,12 @@ ticks = {}
 in_commit = False
 block_events_str = ""
 EVENT_SEPARATOR = "|"
-INDEXER_VERSION = "opi-brc20-full-node v0.3.0"
-CAN_BE_FIXED_DB_VERSIONS = [  ]
-DB_VERSION = 3
+INDEXER_VERSION = "opi-brc20-full-node v0.4.1"
+RECOVERABLE_DB_VERSIONS = [ 4 ]
+DB_VERSION = 5
+EVENT_HASH_VERSION = 2
+
+SELF_MINT_ENABLE_HEIGHT = 837090
 
 ## psycopg2 doesn't get decimal size from postgres and defaults to 28 which is not enough for brc-20 so we use long which is infinite for integers
 DEC2LONG = psycopg2.extensions.new_type(
@@ -53,6 +56,14 @@ first_inscription_heights = {
   'regtest': 0,
 }
 first_inscription_height = first_inscription_heights[network_type]
+
+first_brc20_heights = {
+  'mainnet': 779832,
+  'testnet': 2413343,
+  'signet': 112402,
+  'regtest': 0,
+}
+first_brc20_height = first_brc20_heights[network_type]
 
 if network_type == 'regtest':
   report_to_indexer = False
@@ -98,12 +109,28 @@ if create_extra_tables:
 
 cur_metaprotocol.execute('SELECT network_type from ord_network_type LIMIT 1;')
 if cur_metaprotocol.rowcount == 0:
-  print("ord_network_type not found, main db needs to be recreated from scratch or fixed with index.js, please run index.js or main_index")
+  print("ord_network_type not found, main db needs to be recreated from scratch or fixed with index.js, please run index.js in main_index")
   sys.exit(1)
 
 network_type_db = cur_metaprotocol.fetchone()[0]
 if network_type_db != network_type:
   print("network_type mismatch between main index and brc20 index")
+  sys.exit(1)
+
+cur_metaprotocol.execute('SELECT event_type, max_transfer_cnt from ord_transfer_counts;')
+if cur_metaprotocol.rowcount == 0:
+  print("ord_transfer_counts not found, please run index.js in main_index to fix db")
+  sys.exit(1)
+
+default_max_transfer_cnt = 0
+tx_limits = cur_metaprotocol.fetchall()
+for tx_limit in tx_limits:
+  if tx_limit[0] == 'default':
+    default_max_transfer_cnt = tx_limit[1]
+    break
+
+if default_max_transfer_cnt < 2:
+  print("default max_transfer_cnt is less than 2, brc20_indexer requires at least 2, please recreate db from scratch and rerun ord with default tx limit set to 2 or more")
   sys.exit(1)
 
 ## helper functions
@@ -121,7 +148,11 @@ def is_positive_number(s, do_strip=False):
         if ord(ch) > ord('9') or ord(ch) < ord('0'):
           return False
       return True
+    except KeyboardInterrupt:
+      raise KeyboardInterrupt
     except: return False
+  except KeyboardInterrupt:
+    raise KeyboardInterrupt
   except: return False ## has to be a string
 
 def is_positive_number_with_dot(s, do_strip=False):
@@ -139,7 +170,11 @@ def is_positive_number_with_dot(s, do_strip=False):
           if dotFound: return False
           dotFound = True
       return True
+    except KeyboardInterrupt:
+      raise KeyboardInterrupt
     except: return False
+  except KeyboardInterrupt:
+    raise KeyboardInterrupt
   except: return False ## has to be a string
 
 def get_number_extended_to_18_decimals(s, decimals, do_strip=False):
@@ -185,9 +220,11 @@ def get_event_str(event, event_type, inscription_id):
     res += inscription_id + ";"
     res += event["deployer_pkScript"] + ";"
     res += event["tick"] + ";"
+    res += event["original_tick"] + ";"
     res += fix_numstr_decimals(event["max_supply"], decimals_int) + ";"
     res += event["decimals"] + ";"
-    res += fix_numstr_decimals(event["limit_per_mint"], decimals_int)
+    res += fix_numstr_decimals(event["limit_per_mint"], decimals_int) + ";"
+    res += event["is_self_mint"]
     return res
   elif event_type == "mint-inscribe":
     decimals_int = ticks[event["tick"]][2]
@@ -195,7 +232,9 @@ def get_event_str(event, event_type, inscription_id):
     res += inscription_id + ";"
     res += event["minted_pkScript"] + ";"
     res += event["tick"] + ";"
-    res += fix_numstr_decimals(event["amount"], decimals_int)
+    res += event["original_tick"] + ";"
+    res += fix_numstr_decimals(event["amount"], decimals_int) + ";"
+    res += event["parent_id"]
     return res
   elif event_type == "transfer-inscribe":
     decimals_int = ticks[event["tick"]][2]
@@ -203,6 +242,7 @@ def get_event_str(event, event_type, inscription_id):
     res += inscription_id + ";"
     res += event["source_pkScript"] + ";"
     res += event["tick"] + ";"
+    res += event["original_tick"] + ";"
     res += fix_numstr_decimals(event["amount"], decimals_int)
     return res
   elif event_type == "transfer-transfer":
@@ -215,6 +255,7 @@ def get_event_str(event, event_type, inscription_id):
     else:
       res += ";"
     res += event["tick"] + ";"
+    res += event["original_tick"] + ";"
     res += fix_numstr_decimals(event["amount"], decimals_int)
     return res
   else:
@@ -270,12 +311,60 @@ def check_available_balance(pkScript, tick, amount):
   if available_balance < amount: return False
   return True
 
+
+transfer_validity_cache = {}
+def is_used_or_invalid(inscription_id):
+  global event_types, transfer_validity_cache
+  if inscription_id in transfer_validity_cache:
+    return transfer_validity_cache[inscription_id] != 1
+  cur.execute('''select coalesce(sum(case when event_type = %s then 1 else 0 end), 0) as inscr_cnt,
+                        coalesce(sum(case when event_type = %s then 1 else 0 end), 0) as transfer_cnt
+                        from brc20_events where inscription_id = %s;''', (event_types["transfer-inscribe"], event_types["transfer-transfer"], inscription_id,))
+  row = cur.fetchall()[0]
+  if row[0] != 1:
+    transfer_validity_cache[inscription_id] = 0 ## invalid transfer (no inscribe event)
+    return True
+  elif row[1] != 0:
+    transfer_validity_cache[inscription_id] = -1 ## used
+    return True
+  else:
+    transfer_validity_cache[inscription_id] = 1 ## valid
+    return False
+
+def set_transfer_as_used(inscription_id):
+  global transfer_validity_cache
+  transfer_validity_cache[inscription_id] = -1
+
+def set_transfer_as_valid(inscription_id):
+  global transfer_validity_cache
+  transfer_validity_cache[inscription_id] = 1
+
 def reset_caches():
-  global balance_cache, transfer_inscribe_event_cache
+  global balance_cache, transfer_inscribe_event_cache, ticks, transfer_validity_cache
   balance_cache = {}
   transfer_inscribe_event_cache = {}
+  transfer_validity_cache = {}
+  sttm = time.time()
+  cur.execute('''select tick, remaining_supply, limit_per_mint, decimals, is_self_mint, deploy_inscription_id from brc20_tickers;''')
+  ticks_ = cur.fetchall()
+  ticks = {}
+  for t in ticks_:
+    ticks[t[0]] = [t[1], t[2], t[3], t[4], t[5]]
+  print("Ticks refreshed in " + str(time.time() - sttm) + " seconds")
 
-def deploy_inscribe(block_height, inscription_id, deployer_pkScript, deployer_wallet, tick, max_supply, decimals, limit_per_mint):
+block_start_max_event_id = None
+brc20_events_insert_sql = '''insert into brc20_events (id, event_type, block_height, inscription_id, event) values '''
+brc20_events_insert_cache = []
+brc20_tickers_insert_sql = '''insert into brc20_tickers (tick, original_tick, max_supply, decimals, limit_per_mint, remaining_supply, block_height, is_self_mint, deploy_inscription_id) values '''
+brc20_tickers_insert_cache = []
+brc20_tickers_remaining_supply_update_sql = '''update brc20_tickers set remaining_supply = remaining_supply - %s where tick = %s;'''
+brc20_tickers_remaining_supply_update_cache = {}
+brc20_tickers_burned_supply_update_sql = '''update brc20_tickers set burned_supply = burned_supply + %s where tick = %s;'''
+brc20_tickers_burned_supply_update_cache = {}
+brc20_historic_balances_insert_sql = '''insert into brc20_historic_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) values '''
+brc20_historic_balances_insert_cache = []
+
+def deploy_inscribe(block_height, inscription_id, deployer_pkScript, deployer_wallet, tick, original_tick, max_supply, decimals, limit_per_mint, is_self_mint):
   global ticks, in_commit, block_events_str, event_types
   cur.execute("BEGIN;")
   in_commit = True
@@ -284,9 +373,11 @@ def deploy_inscribe(block_height, inscription_id, deployer_pkScript, deployer_wa
     "deployer_pkScript": deployer_pkScript,
     "deployer_wallet": deployer_wallet,
     "tick": tick,
+    "original_tick": original_tick,
     "max_supply": str(max_supply),
     "decimals": str(decimals),
-    "limit_per_mint": str(limit_per_mint)
+    "limit_per_mint": str(limit_per_mint),
+    "is_self_mint": str(is_self_mint)
   }
   block_events_str += get_event_str(event, "deploy-inscribe", inscription_id) + EVENT_SEPARATOR
   cur.execute('''insert into brc20_events (event_type, block_height, inscription_id, event)
@@ -308,7 +399,9 @@ def mint_inscribe(block_height, inscription_id, minted_pkScript, minted_wallet, 
     "minted_pkScript": minted_pkScript,
     "minted_wallet": minted_wallet,
     "tick": tick,
-    "amount": str(amount)
+    "original_tick": original_tick,
+    "amount": str(amount),
+    "parent_id": parent_id
   }
   block_events_str += get_event_str(event, "mint-inscribe", inscription_id) + EVENT_SEPARATOR
   cur.execute('''insert into brc20_events (event_type, block_height, inscription_id, event)
@@ -336,6 +429,7 @@ def transfer_inscribe(block_height, inscription_id, source_pkScript, source_wall
     "source_pkScript": source_pkScript,
     "source_wallet": source_wallet,
     "tick": tick,
+    "original_tick": original_tick,
     "amount": str(amount)
   }
   block_events_str += get_event_str(event, "transfer-inscribe", inscription_id) + EVENT_SEPARATOR
@@ -367,6 +461,7 @@ def transfer_transfer_normal(block_height, inscription_id, spent_pkScript, spent
     "spent_pkScript": spent_pkScript,
     "spent_wallet": spent_wallet,
     "tick": tick,
+    "original_tick": original_tick,
     "amount": str(amount),
     "using_tx_id": str(using_tx_id)
   }
@@ -406,6 +501,7 @@ def transfer_transfer_spend_to_fee(block_height, inscription_id, tick, amount, u
     "spent_pkScript": None,
     "spent_wallet": None,
     "tick": tick,
+    "original_tick": original_tick,
     "amount": str(amount),
     "using_tx_id": str(using_tx_id)
   }
@@ -435,14 +531,19 @@ def update_event_hashes(block_height):
   else:
     cumulative_event_hash = get_sha256_hash(cur.fetchone()[0] + block_event_hash)
   cur.execute('''INSERT INTO brc20_cumulative_event_hashes (block_height, block_event_hash, cumulative_event_hash) VALUES (%s, %s, %s);''', (block_height, block_event_hash, cumulative_event_hash))
-    
 
 def index_block(block_height, current_block_hash):
-  global ticks, block_events_str
+  global ticks, block_events_str, block_start_max_event_id, brc20_events_insert_cache, brc20_tickers_insert_cache, brc20_tickers_remaining_supply_update_cache, brc20_tickers_burned_supply_update_cache, brc20_historic_balances_insert_cache, in_commit
   print("Indexing block " + str(block_height))
   block_events_str = ""
+
+  if block_height < first_brc20_height:
+    print("Block height is before first brc20 height, skipping")
+    update_event_hashes(block_height)
+    cur.execute('''INSERT INTO brc20_block_hashes (block_height, block_hash) VALUES (%s, %s);''', (block_height, current_block_hash))
+    return
   
-  cur_metaprotocol.execute('''SELECT ot.id, ot.inscription_id, ot.old_satpoint, ot.new_pkscript, ot.new_wallet, ot.sent_as_fee, oc."content", oc.content_type
+  cur_metaprotocol.execute('''SELECT ot.id, ot.inscription_id, ot.old_satpoint, ot.new_pkscript, ot.new_wallet, ot.sent_as_fee, oc."content", oc.content_type, onti.parent_id
                               FROM ord_transfers ot
                               LEFT JOIN ord_content oc ON ot.inscription_id = oc.inscription_id
                               LEFT JOIN ord_number_to_id onti ON ot.inscription_id = onti.inscription_id
@@ -458,14 +559,13 @@ def index_block(block_height, current_block_hash):
     return
   print("Transfer count: ", len(transfers))
 
-  ## refresh ticks
-  sttm = time.time()
-  cur.execute('''select tick, remaining_supply, limit_per_mint, decimals from brc20_tickers;''')
-  ticks_ = cur.fetchall()
-  ticks = {}
-  for t in ticks_:
-    ticks[t[0]] = [t[1], t[2], t[3]]
-  print("Ticks refreshed in " + str(time.time() - sttm) + " seconds")
+  cur.execute('''select COALESCE(max(id), -1) from brc20_events;''')
+  block_start_max_event_id = cur.fetchone()[0]
+  brc20_events_insert_cache = []
+  brc20_tickers_insert_cache = []
+  brc20_tickers_remaining_supply_update_cache = {}
+  brc20_tickers_burned_supply_update_cache = {}
+  brc20_historic_balances_insert_cache = []
   
   idx = 0
   for transfer in transfers:
@@ -473,12 +573,15 @@ def index_block(block_height, current_block_hash):
     if idx % 100 == 0:
       print(idx, '/', len(transfers))
     
-    tx_id, inscr_id, old_satpoint, new_pkScript, new_addr, sent_as_fee, js, content_type = transfer
+    tx_id, inscr_id, old_satpoint, new_pkScript, new_addr, sent_as_fee, js, content_type, parent_id = transfer
+    if parent_id is None: parent_id = ""
     
     if sent_as_fee and old_satpoint == '': continue ## inscribed as fee
 
     if content_type is None: continue ## invalid inscription
     try: content_type = codecs.decode(content_type, "hex").decode('utf-8')
+    except KeyboardInterrupt:
+      raise KeyboardInterrupt
     except: pass
     content_type = content_type.split(';')[0]
     if content_type != 'application/json' and content_type != 'text/plain': continue ## invalid inscription
@@ -486,9 +589,13 @@ def index_block(block_height, current_block_hash):
     if "tick" not in js: continue ## invalid inscription
     if "op" not in js: continue ## invalid inscription
     tick = js["tick"]
+    original_tick = tick
     try: tick = tick.lower()
+    except KeyboardInterrupt:
+      raise KeyboardInterrupt
     except: continue ## invalid tick
-    if utf8len(tick) != 4: continue ## invalid tick
+    original_tick_len = utf8len(original_tick)
+    if original_tick_len != 4 and original_tick_len != 5: continue ## invalid tick
     
     # handle deploy
     if js["op"] == 'deploy' and old_satpoint == '':
@@ -505,7 +612,7 @@ def index_block(block_height, current_block_hash):
       else:
         max_supply = get_number_extended_to_18_decimals(max_supply, decimals)
         if max_supply is None: continue ## invalid max supply
-        if max_supply > (2**64-1) * (10**18) or max_supply <= 0: continue ## invalid max supply
+        if max_supply > (2**64-1) * (10**18) or max_supply < 0: continue ## invalid max supply
       limit_per_mint = max_supply
       if "lim" in js:
         if not is_positive_number_with_dot(js["lim"]): continue ## invalid limit per mint
@@ -513,7 +620,18 @@ def index_block(block_height, current_block_hash):
           limit_per_mint = get_number_extended_to_18_decimals(js["lim"], decimals)
           if limit_per_mint is None: continue ## invalid limit per mint
           if limit_per_mint > (2**64-1) * (10**18) or limit_per_mint <= 0: continue ## invalid limit per mint
-      deploy_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, max_supply, decimals, limit_per_mint)
+      is_self_mint = "false"
+      if original_tick_len == 5: ## this is a self-mint token
+        if block_height < SELF_MINT_ENABLE_HEIGHT: continue ## self-mint not enabled yet
+        if "self_mint" not in js: continue ## invalid inscription
+        if js["self_mint"] != "true": continue ## invalid inscription
+        is_self_mint = "true"
+        if max_supply == 0: 
+          max_supply = (2**64-1) * (10**18) ## infinite(ish) mint
+          if limit_per_mint == 0:
+            limit_per_mint = (2**64-1) * (10**18)
+      if max_supply == 0: continue ## invalid max supply
+      deploy_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, original_tick, max_supply, decimals, limit_per_mint, is_self_mint)
     
     # handle mint
     if js["op"] == 'mint' and old_satpoint == '':
@@ -529,7 +647,10 @@ def index_block(block_height, current_block_hash):
       if ticks[tick][1] is not None and amount > ticks[tick][1]: continue ## mint too much
       if amount > ticks[tick][0]: ## mint remaining tokens
         amount = ticks[tick][0]
-      mint_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, amount)
+      if ticks[tick][3]: ## self-mint
+        ## check parent token
+        if ticks[tick][4] != parent_id: continue ## invalid parent token
+      mint_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, original_tick, amount, parent_id)
     
     # handle transfer
     if js["op"] == 'transfer':
@@ -544,19 +665,45 @@ def index_block(block_height, current_block_hash):
       ## check if available balance is enough
       if old_satpoint == '':
         if not check_available_balance(new_pkScript, tick, amount): continue ## not enough available balance
-        transfer_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, amount)
+        transfer_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, original_tick, amount)
       else:
         if is_used_or_invalid(inscr_id): continue ## already used or invalid
-        if sent_as_fee: transfer_transfer_spend_to_fee(block_height, inscr_id, tick, amount, tx_id)
-        else: transfer_transfer_normal(block_height, inscr_id, new_pkScript, new_addr, tick, amount, tx_id)
+        if sent_as_fee: transfer_transfer_spend_to_fee(block_height, inscr_id, tick, original_tick, amount, tx_id)
+        else: transfer_transfer_normal(block_height, inscr_id, new_pkScript, new_addr, tick, original_tick, amount, tx_id)
   
+  cur.execute("BEGIN;")
+  in_commit = True
+  print("inserting events...")
+  execute_batch_insert(brc20_events_insert_sql, brc20_events_insert_cache, 1000)
+  print("inserting tickers...")
+  execute_batch_insert(brc20_tickers_insert_sql, brc20_tickers_insert_cache, 1000)
+  print("updating tickers remaining_supply...")
+  for tick in brc20_tickers_remaining_supply_update_cache:
+    cur.execute(brc20_tickers_remaining_supply_update_sql, (brc20_tickers_remaining_supply_update_cache[tick], tick))
+  print("updating tickers burned_supply...")
+  for tick in brc20_tickers_burned_supply_update_cache:
+    cur.execute(brc20_tickers_burned_supply_update_sql, (brc20_tickers_burned_supply_update_cache[tick], tick))
+  print("inserting historic balances...")
+  execute_batch_insert(brc20_historic_balances_insert_sql, brc20_historic_balances_insert_cache, 1000)
   update_event_hashes(block_height)
   # end of block
   cur.execute('''INSERT INTO brc20_block_hashes (block_height, block_hash) VALUES (%s, %s);''', (block_height, current_block_hash))
+  print("committing...")
+  cur.execute("COMMIT;")
+  in_commit = False
   conn.commit()
   print("ALL DONE")
 
+def execute_batch_insert(sql_start, cache, batch_size):
+  if len(cache) > 0:
+    single_elem_cnt = len(cache[0])
+    single_insert_sql_part = '(' + ','.join(['%s' for _ in range(single_elem_cnt)]) + ')'
+    for i in range(0, len(cache), batch_size):
+      elem_cnt = min(batch_size, len(cache) - i)
+      sql = sql_start + ','.join([single_insert_sql_part for _ in range(elem_cnt)]) + ';'
+      cur.execute(sql, [elem for sublist in cache[i:i+batch_size] for elem in sublist])
 
+      
 
 def check_for_reorg():
   cur.execute('select block_height, block_hash from brc20_block_hashes order by block_height desc limit 1;')
@@ -669,6 +816,13 @@ event_types_rev = {}
 for key in event_types:
   event_types_rev[event_types[key]] = key
 
+sttm = time.time()
+cur.execute('''select tick, remaining_supply, limit_per_mint, decimals, is_self_mint, deploy_inscription_id from brc20_tickers;''')
+ticks_ = cur.fetchall()
+ticks = {}
+for t in ticks_:
+  ticks[t[0]] = [t[1], t[2], t[3], t[4], t[5]]
+print("Ticks refreshed in " + str(time.time() - sttm) + " seconds")
 
 def reindex_cumulative_hashes():
   global event_types_rev, ticks
@@ -679,11 +833,11 @@ def reindex_cumulative_hashes():
   max_block = row[1]
 
   sttm = time.time()
-  cur.execute('''select tick, remaining_supply, limit_per_mint, decimals from brc20_tickers;''')
+  cur.execute('''select tick, remaining_supply, limit_per_mint, decimals, is_self_mint, deploy_inscription_id from brc20_tickers;''')
   ticks_ = cur.fetchall()
   ticks = {}
   for t in ticks_:
-    ticks[t[0]] = [t[1], t[2], t[3]]
+    ticks[t[0]] = [t[1], t[2], t[3], t[4], t[5]]
   print("Ticks refreshed in " + str(time.time() - sttm) + " seconds")
 
   print("Reindexing cumulative hashes from " + str(min_block) + " to " + str(max_block))
@@ -699,6 +853,16 @@ def reindex_cumulative_hashes():
       block_events_str += get_event_str(event, event_type, inscription_id) + EVENT_SEPARATOR
     update_event_hashes(block_height)
 
+def fix_db_from_version(version):
+  if version == 4:
+    print("Fixing db from version 4")
+    ## change type of original_tick in brc20_tickers to text
+    cur.execute('''alter table brc20_tickers alter column original_tick type text;''')
+    reorg_fix(SELF_MINT_ENABLE_HEIGHT - 1)
+  else:
+    print("Unknown db version, cannot fix db.")
+    exit(1)
+
 cur.execute('select db_version from brc20_indexer_version;')
 if cur.rowcount == 0:
   print("Indexer version not found, db needs to be recreated from scratch, please run reset_init.py")
@@ -707,14 +871,13 @@ else:
   db_version = cur.fetchone()[0]
   if db_version != DB_VERSION:
     print("Indexer version mismatch!!")
-    if db_version not in CAN_BE_FIXED_DB_VERSIONS:
-      print("This version (" + db_version + ") cannot be fixed, please run reset_init.py")
+    if db_version not in RECOVERABLE_DB_VERSIONS:
+      print("This version (" + str(db_version) + ") cannot be fixed, please run reset_init.py")
       exit(1)
     else:
-      print("This version (" + db_version + ") can be fixed, fixing in 5 secs...")
+      print("This version (" + str(db_version) + ") can be fixed, fixing in 5 secs...")
       time.sleep(5)
-      reindex_cumulative_hashes()
-      cur.execute('alter table brc20_indexer_version add column if not exists db_version int4;') ## next versions will use DB_VERSION for DB check
+      fix_db_from_version(db_version)
       cur.execute('update brc20_indexer_version set indexer_version = %s, db_version = %s;', (INDEXER_VERSION, DB_VERSION,))
       print("Fixed.")
 
@@ -728,6 +891,8 @@ def try_to_report_with_retries(to_send):
         return
       else:
         print("Error while reporting hashes to metaprotocol indexer indexer, status code: " + str(r.status_code))
+    except KeyboardInterrupt:
+      raise KeyboardInterrupt
     except:
       print("Error while reporting hashes to metaprotocol indexer indexer, retrying...")
     time.sleep(1)
@@ -751,6 +916,7 @@ def report_hashes(block_height):
     "network_type": network_type,
     "version": INDEXER_VERSION,
     "db_version": DB_VERSION,
+    "event_hash_version": EVENT_HASH_VERSION,
     "block_height": block_height,
     "block_hash": block_hash,
     "block_event_hash": block_event_hash,
@@ -993,6 +1159,8 @@ def check_extra_tables():
       else:
         print("extra table data index failed for block: " + str(ebh_tocheck_height))
         return
+  except KeyboardInterrupt:
+    raise KeyboardInterrupt
   except:
     traceback.print_exc()
     return
@@ -1032,12 +1200,20 @@ while True:
     continue
   try:
     index_block(current_block, current_block_hash)
-    if create_extra_tables:
+    if create_extra_tables and max_block_of_metaprotocol_db - current_block < 10: ## only update extra tables at the end of sync
       print("checking extra tables")
       check_extra_tables()
     if max_block_of_metaprotocol_db - current_block < 10 or current_block - last_report_height > 100: ## do not report if there are more than 10 blocks to index
       report_hashes(current_block)
       last_report_height = current_block
+  except KeyboardInterrupt:
+    traceback.print_exc()
+    if in_commit: ## rollback commit if any
+      print("rolling back")
+      cur.execute('''ROLLBACK;''')
+      in_commit = False
+    print("Exiting...")
+    sys.exit(1)
   except:
     traceback.print_exc()
     if in_commit: ## rollback commit if any
