@@ -170,7 +170,18 @@ node index.js;
 ```
 
 **BRC-20 Indexer**
+```bash
+cd modules/brc20_index;
+python3 brc20_index.py;
+```
 
+**BRC-20 API**
+```bash
+cd modules/brc20_api;
+node api.js;
+```
+
+**BRC-20 swap Indexer**
 ```bash
 cd modules/brc20_swap_index;
 docker-compose up -d
