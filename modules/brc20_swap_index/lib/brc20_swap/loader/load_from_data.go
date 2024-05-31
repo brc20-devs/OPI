@@ -12,30 +12,6 @@ import (
 	"github.com/unisat-wallet/libbrc20-indexer/utils"
 )
 
-func GetBRC20InputDataLineCount(fname string) (int, error) {
-	file, err := os.Open(fname)
-	if err != nil {
-		return 0, err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	max := 128 * 1024 * 1024
-	buf := make([]byte, max)
-	scanner.Buffer(buf, max)
-
-	count := 0
-	for scanner.Scan() {
-		count++
-	}
-
-	if err := scanner.Err(); err != nil {
-		return 0, err
-	}
-
-	return count, nil
-}
-
 func LoadBRC20InputData(fname string, brc20Datas chan interface{}) error {
 	file, err := os.Open(fname)
 	if err != nil {
@@ -112,7 +88,13 @@ func LoadBRC20InputData(fname string, brc20Datas chan interface{}) error {
 			return err
 		}
 		data.ContentBody = content
-		data.CreateIdxKey = string(fields[9])
+
+		createIdxKey, err := hex.DecodeString(fields[9])
+		if err != nil {
+			return err
+		}
+
+		data.CreateIdxKey = string(createIdxKey)
 
 		height, err := strconv.ParseUint(fields[10], 10, 32)
 		if err != nil {
