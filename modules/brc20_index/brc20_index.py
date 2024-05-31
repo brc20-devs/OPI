@@ -191,14 +191,6 @@ def get_number_extended_to_18_decimals(s, decimals, do_strip=False):
   else:
     return int(s) * 10 ** 18
 
-def is_used_or_invalid(inscription_id):
-  global event_types
-  cur.execute('''select coalesce(sum(case when event_type = %s then 1 else 0 end), 0) as inscr_cnt,
-                        coalesce(sum(case when event_type = %s then 1 else 0 end), 0) as transfer_cnt
-                        from brc20_events where inscription_id = %s;''', (event_types["transfer-inscribe"], event_types["transfer-transfer"], inscription_id,))
-  row = cur.fetchall()[0]
-  return (row[0] != 1) or (row[1] != 0)
-
 def fix_numstr_decimals(num_str, decimals):
   if len(num_str) <= 18:
     num_str = '0' * (18 - len(num_str)) + num_str
@@ -366,8 +358,6 @@ brc20_historic_balances_insert_cache = []
 
 def deploy_inscribe(block_height, inscription_id, deployer_pkScript, deployer_wallet, tick, original_tick, max_supply, decimals, limit_per_mint, is_self_mint):
   global ticks, in_commit, block_events_str, event_types
-  cur.execute("BEGIN;")
-  in_commit = True
 
   event = {
     "deployer_pkScript": deployer_pkScript,
@@ -380,20 +370,15 @@ def deploy_inscribe(block_height, inscription_id, deployer_pkScript, deployer_wa
     "is_self_mint": str(is_self_mint)
   }
   block_events_str += get_event_str(event, "deploy-inscribe", inscription_id) + EVENT_SEPARATOR
-  cur.execute('''insert into brc20_events (event_type, block_height, inscription_id, event)
-    values (%s, %s, %s, %s);''', (event_types["deploy-inscribe"], block_height, inscription_id, json.dumps(event)))
+  event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
+  brc20_events_insert_cache.append((event_id, event_types["deploy-inscribe"], block_height, inscription_id, json.dumps(event)))
   
-  cur.execute('''insert into brc20_tickers (tick, max_supply, decimals, limit_per_mint, remaining_supply, block_height)
-    values (%s, %s, %s, %s, %s, %s);''', (tick, max_supply, decimals, limit_per_mint, max_supply, block_height))
+  brc20_tickers_insert_cache.append((tick, original_tick, max_supply, decimals, limit_per_mint, max_supply, block_height, is_self_mint == "true", inscription_id))
   
-  cur.execute("COMMIT;")
-  in_commit = False
-  ticks[tick] = [max_supply, limit_per_mint, decimals]
+  ticks[tick] = [max_supply, limit_per_mint, decimals, is_self_mint == "true", inscription_id]
 
-def mint_inscribe(block_height, inscription_id, minted_pkScript, minted_wallet, tick, amount):
+def mint_inscribe(block_height, inscription_id, minted_pkScript, minted_wallet, tick, original_tick, amount, parent_id):
   global ticks, in_commit, block_events_str, event_types
-  cur.execute("BEGIN;")
-  in_commit = True
 
   event = {
     "minted_pkScript": minted_pkScript,
@@ -404,26 +389,19 @@ def mint_inscribe(block_height, inscription_id, minted_pkScript, minted_wallet, 
     "parent_id": parent_id
   }
   block_events_str += get_event_str(event, "mint-inscribe", inscription_id) + EVENT_SEPARATOR
-  cur.execute('''insert into brc20_events (event_type, block_height, inscription_id, event)
-    values (%s, %s, %s, %s) returning id;''', (event_types["mint-inscribe"], block_height, inscription_id, json.dumps(event)))
-  event_id = cur.fetchone()[0]
-  cur.execute('''update brc20_tickers set remaining_supply = remaining_supply - %s where tick = %s;''', (amount, tick))
+  event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
+  brc20_events_insert_cache.append((event_id, event_types["mint-inscribe"], block_height, inscription_id, json.dumps(event)))
+  brc20_tickers_remaining_supply_update_cache[tick] = brc20_tickers_remaining_supply_update_cache.get(tick, 0) + amount
 
   last_balance = get_last_balance(minted_pkScript, tick)
   last_balance["overall_balance"] += amount
   last_balance["available_balance"] += amount
-  cur.execute('''insert into brc20_historic_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
-                values (%s, %s, %s, %s, %s, %s, %s);''', 
-                (minted_pkScript, minted_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
+  brc20_historic_balances_insert_cache.append((minted_pkScript, minted_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
   
-  cur.execute("COMMIT;")
-  in_commit = False
   ticks[tick][0] -= amount
 
-def transfer_inscribe(block_height, inscription_id, source_pkScript, source_wallet, tick, amount):
+def transfer_inscribe(block_height, inscription_id, source_pkScript, source_wallet, tick, original_tick, amount):
   global in_commit, block_events_str, event_types
-  cur.execute("BEGIN;")
-  in_commit = True
 
   event = {
     "source_pkScript": source_pkScript,
@@ -433,24 +411,18 @@ def transfer_inscribe(block_height, inscription_id, source_pkScript, source_wall
     "amount": str(amount)
   }
   block_events_str += get_event_str(event, "transfer-inscribe", inscription_id) + EVENT_SEPARATOR
-  cur.execute('''insert into brc20_events (event_type, block_height, inscription_id, event)
-    values (%s, %s, %s, %s) returning id;''', (event_types["transfer-inscribe"], block_height, inscription_id, json.dumps(event)))
-  event_id = cur.fetchone()[0]
+  event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
+  brc20_events_insert_cache.append((event_id, event_types["transfer-inscribe"], block_height, inscription_id, json.dumps(event)))
+  set_transfer_as_valid(inscription_id)
   
   last_balance = get_last_balance(source_pkScript, tick)
   last_balance["available_balance"] -= amount
-  cur.execute('''insert into brc20_historic_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id)
-                values (%s, %s, %s, %s, %s, %s, %s);''', 
-                (source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
+  brc20_historic_balances_insert_cache.append((source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
   
-  cur.execute("COMMIT;")
-  in_commit = False
   save_transfer_inscribe_event(inscription_id, event)
 
-def transfer_transfer_normal(block_height, inscription_id, spent_pkScript, spent_wallet, tick, amount, using_tx_id):
+def transfer_transfer_normal(block_height, inscription_id, spent_pkScript, spent_wallet, tick, original_tick, amount, using_tx_id):
   global in_commit, block_events_str, event_types
-  cur.execute("BEGIN;")
-  in_commit = True
 
   inscribe_event = get_transfer_inscribe_event(inscription_id)
   source_pkScript = inscribe_event["source_pkScript"]
@@ -466,31 +438,25 @@ def transfer_transfer_normal(block_height, inscription_id, spent_pkScript, spent
     "using_tx_id": str(using_tx_id)
   }
   block_events_str += get_event_str(event, "transfer-transfer", inscription_id) + EVENT_SEPARATOR
-  cur.execute('''insert into brc20_events (event_type, block_height, inscription_id, event)
-    values (%s, %s, %s, %s) returning id;''', (event_types["transfer-transfer"], block_height, inscription_id, json.dumps(event)))
-  event_id = cur.fetchone()[0]
+  event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
+  brc20_events_insert_cache.append((event_id, event_types["transfer-transfer"], block_height, inscription_id, json.dumps(event)))
+  set_transfer_as_used(inscription_id)
   
   last_balance = get_last_balance(source_pkScript, tick)
   last_balance["overall_balance"] -= amount
-  cur.execute('''insert into brc20_historic_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id)
-                values (%s, %s, %s, %s, %s, %s, %s);''', 
-                (source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
+  brc20_historic_balances_insert_cache.append((source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
   
   if spent_pkScript != source_pkScript:
     last_balance = get_last_balance(spent_pkScript, tick)
   last_balance["overall_balance"] += amount
   last_balance["available_balance"] += amount
-  cur.execute('''insert into brc20_historic_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
-                values (%s, %s, %s, %s, %s, %s, %s);''', 
-                (spent_pkScript, spent_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, -1 * event_id)) ## negated to make a unique event_id
+  brc20_historic_balances_insert_cache.append((spent_pkScript, spent_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, -1 * event_id)) ## negated to make a unique event_id
   
-  cur.execute("COMMIT;")
-  in_commit = False
+  if spent_pkScript == '6a':
+    brc20_tickers_burned_supply_update_cache[tick] = brc20_tickers_burned_supply_update_cache.get(tick, 0) + amount
 
-def transfer_transfer_spend_to_fee(block_height, inscription_id, tick, amount, using_tx_id):
+def transfer_transfer_spend_to_fee(block_height, inscription_id, tick, original_tick, amount, using_tx_id):
   global in_commit, block_events_str, event_types
-  cur.execute("BEGIN;")
-  in_commit = True
 
   inscribe_event = get_transfer_inscribe_event(inscription_id)
   source_pkScript = inscribe_event["source_pkScript"]
@@ -506,18 +472,13 @@ def transfer_transfer_spend_to_fee(block_height, inscription_id, tick, amount, u
     "using_tx_id": str(using_tx_id)
   }
   block_events_str += get_event_str(event, "transfer-transfer", inscription_id) + EVENT_SEPARATOR
-  cur.execute('''insert into brc20_events (event_type, block_height, inscription_id, event)
-    values (%s, %s, %s, %s) returning id;''', (event_types["transfer-transfer"], block_height, inscription_id, json.dumps(event)))
-  event_id = cur.fetchone()[0]
+  event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
+  brc20_events_insert_cache.append((event_id, event_types["transfer-transfer"], block_height, inscription_id, json.dumps(event)))
+  set_transfer_as_used(inscription_id)
   
   last_balance = get_last_balance(source_pkScript, tick)
   last_balance["available_balance"] += amount
-  cur.execute('''insert into brc20_historic_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height, event_id) 
-                values (%s, %s, %s, %s, %s, %s, %s);''', 
-                (source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
-  
-  cur.execute("COMMIT;")
-  in_commit = False
+  brc20_historic_balances_insert_cache.append((source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
 
 
 def update_event_hashes(block_height):
