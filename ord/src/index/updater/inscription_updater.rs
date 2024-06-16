@@ -26,9 +26,16 @@ pub(super) struct Flotsam<'a> {
 }
 
 // tracking first 2 transfers is enough for brc-20 metaprotocol
-const INDEX_TX_LIMIT : i64 = 2;
-const INDEX_TX_JSON_LIMIT : i64 = 100;
-const INDEX_TX_BRC20_LIMIT : i64 = 2;
+
+lazy_static! {
+  pub static ref TX_LIMITS: HashMap<String, i16> = {
+      let mut m = HashMap::<String, i16>::new();
+      m.insert("default".into(), 2);
+      m.insert("brc20".into(), 2);
+      m.insert("brc20-approve-conditional".into(), 50);
+      m
+  };
+}
 
 #[derive(Debug, Clone)]
 enum Origin {
@@ -452,47 +459,98 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     unreachable!()
   }
 
+  fn get_json_tx_limit(inscription_content_option: &Option<Vec<u8>>) -> i16 {
+    if inscription_content_option.is_none() { return 0; }
+    let inscription_content = inscription_content_option.as_ref().unwrap();
+
+    let json = serde_json::from_slice::<Value>(&inscription_content);
+    if json.is_err() {
+      return 0;
+    } else {
+      // check for event type and return tx limit
+      return TX_LIMITS["default"];
+    }
+  }
+
   fn is_brc20(inscription_content_option: &Option<Vec<u8>>) -> bool {
     if inscription_content_option.is_none() { return false; }
     let inscription_content = inscription_content_option.as_ref().unwrap();
     match serde_json::from_slice::<Value>(&inscription_content) {
-        Ok(content) => {
-	    if let Value::Object(map) = content {
-		// p
-                if let Some(p) = map.get("p") {
-		    if p.as_str() != Some("brc-20") {
-			return false;
-		    }
-                } else {
-		    return false;
-                }
-		// op
-                if let Some(op) = map.get("op") {
-		    if op.as_str() != Some("deploy") && op.as_str() != Some("mint") && op.as_str() != Some("transfer") {
-			return false;
-		    }
-                } else {
-		    return false;
-                }
-		// tick
-                if let Some(_) = map.get("tick") {
-		    return true;
-                } else{
-		    return false
-		}
-	    } else {
-                false
-	    }
-        },
-        Err(_) => false,
+      Ok(content) => {
+        if let Value::Object(map) = content {
+          // p
+          if let Some(p) = map.get("p") {
+            if p.as_str() != Some("brc-20") {
+              return false;
+            }
+          } else {
+            return false;
+          }
+          // op
+          if let Some(op) = map.get("op") {
+            if op.as_str() != Some("deploy") && op.as_str() != Some("mint") && op.as_str() != Some("transfer") {
+              return false;
+            }
+          } else {
+            return false;
+          }
+          // tick
+          if map.contains_key("tick") {
+            return true;
+          } else{
+            return false
+          }
+        } else {
+          false
+        }
+      },
+      Err(_) => false,
     }
   }
 
-  fn is_json(inscription_content_option: &Option<Vec<u8>>) -> bool {
+
+  fn is_brc20_approve_conditional(inscription_content_option: &Option<Vec<u8>>) -> bool {
     if inscription_content_option.is_none() { return false; }
     let inscription_content = inscription_content_option.as_ref().unwrap();
-
-    return serde_json::from_slice::<Value>(&inscription_content).is_ok();
+    match serde_json::from_slice::<Value>(&inscription_content) {
+      Ok(content) => {
+        if let Value::Object(map) = content {
+          // p
+          if let Some(p) = map.get("p") {
+            if p.as_str() != Some("brc20-swap") {
+              return false;
+            }
+          } else {
+            return false;
+          }
+          // op
+          if let Some(op) = map.get("op") {
+            if op.as_str() != Some("conditional-approve") {
+              return false;
+            }
+          } else {
+            return false;
+          }
+          // tick
+          if !map.contains_key("tick") {
+            return false
+          }
+          // amt
+          if !map.contains_key("amt") {
+            return false
+          }
+          // module
+          if map.contains_key("module") {
+            return true;
+          } else{
+            return false
+          }
+        } else {
+          false
+        }
+      },
+      Err(_) => false,
+    }
   }
 
   fn is_text(inscription_content_type_option: &Option<Vec<u8>>) -> bool {
@@ -581,19 +639,17 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let entry = entry
           .map(|entry| InscriptionEntry::load(entry.value()))
           .unwrap();
+
         let is_text = entry.is_text;
         let is_json = entry.is_json;
-        let is_brc20 = entry.is_brc20;
-	if is_json || is_text {
-          if (is_brc20 && txcnt_of_inscr <= INDEX_TX_BRC20_LIMIT) || (
-	      !is_brc20 && !is_json && txcnt_of_inscr <= INDEX_TX_LIMIT) || (
-	      !is_brc20 && is_json && txcnt_of_inscr <= INDEX_TX_JSON_LIMIT) { // only track non-cursed and first two transactions
-              self.write_to_file(format!("cmd;{0};insert;transfer;{1};{old_satpoint};{new_satpoint};{send_to_coinbase};{2};{3};{txcnt_of_inscr}",
-                      self.height, flotsam.inscription_id,
-                      hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
-                      new_output_value.unwrap_or(&0)), false)?;
-          }
-	}
+        let txcnt_limit = entry.txcnt_limit;
+
+        if (is_json || is_text) && txcnt_of_inscr <= txcnt_limit.into() { // only track non-cursed and first two transactions
+          self.write_to_file(format!("cmd;{0};insert;transfer;{1};{old_satpoint};{new_satpoint};{send_to_coinbase};{2};{3};{txcnt_of_inscr}",
+                                     self.height, flotsam.inscription_id,
+                                     hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
+                                     new_output_value.unwrap_or(&0)), false)?;
+        }
 
         (
           false,
@@ -637,11 +693,22 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let inscription_content = inscription.body;
         let inscription_content_type = inscription.content_type;
         let inscription_metaprotocol = inscription.metaprotocol;
-        let is_brc20 = Self::is_brc20(&inscription_content);
-        let is_json = Self::is_json(&inscription_content);
-        let is_text = Self::is_text(&inscription_content_type);
 
-        if !unbound && (is_json || is_text) {
+        let json_txcnt_limit = Self::get_json_tx_limit(&inscription_content);
+        let is_json = json_txcnt_limit > 0;
+
+        let mut is_brc20 = false;
+        let mut is_brc20_approve_conditional = false;
+        if is_json {
+          if Self::is_brc20(&inscription_content) {
+            is_brc20 = true;
+          } else if Self::is_brc20_approve_conditional(&inscription_content) {
+            is_brc20_approve_conditional = true;
+          }
+        }
+
+        let is_text = Self::is_text(&inscription_content_type);
+        let txcnt_limit = if !unbound && (is_json || is_text) {
           self.write_to_file(format!("cmd;{0};insert;number_to_id;{1};{2};{3};{4}", self.height, inscription_number, flotsam.inscription_id, if cursed_for_brc20 {"1"} else {"0"}, parent.map(|p| p.to_string()).unwrap_or(String::from(""))), false)?;
           // write content as minified json
           if is_json {
@@ -649,16 +716,29 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             let inscription_content_json_str = serde_json::to_string(&inscription_content_json).unwrap();
             let inscription_content_type_str = hex::encode(inscription_content_type.unwrap_or(Vec::new()));
             let inscription_metaprotocol_str = hex::encode(inscription_metaprotocol.unwrap_or(Vec::new()));
-            self.write_to_file(format!("cmd;{0};insert;content;{1};{2};{3};{4};{5}", 
+            self.write_to_file(format!("cmd;{0};insert;content;{1};{2};{3};{4};{5}",
                                     self.height, flotsam.inscription_id, is_json, inscription_content_type_str, inscription_metaprotocol_str, inscription_content_json_str), false)?;
+
+            if is_brc20 {
+              TX_LIMITS["brc20"]
+            } else if is_brc20_approve_conditional {
+              TX_LIMITS["brc20-approve-conditional"]
+            } else {
+              json_txcnt_limit
+            }
+
           } else {
             let inscription_content_hex_str = hex::encode(inscription_content.unwrap_or(Vec::new()));
             let inscription_content_type_str = hex::encode(inscription_content_type.unwrap_or(Vec::new()));
             let inscription_metaprotocol_str = hex::encode(inscription_metaprotocol.unwrap_or(Vec::new()));
-            self.write_to_file(format!("cmd;{0};insert;content;{1};{2};{3};{4};{5}", 
+            self.write_to_file(format!("cmd;{0};insert;content;{1};{2};{3};{4};{5}",
                                     self.height, flotsam.inscription_id, is_json, inscription_content_type_str, inscription_metaprotocol_str, inscription_content_hex_str), false)?;
+
+            TX_LIMITS["default"]
           }
-        }
+        } else {
+          0
+        };
 
         let sat = if unbound {
           None
@@ -735,9 +815,9 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             sequence_number,
             timestamp: self.timestamp,
             is_text,
-	    is_json,
-	    is_brc20,
+            is_json,
             is_cursed_for_brc20: cursed_for_brc20,
+            txcnt_limit,
           }
           .store(),
         )?;
