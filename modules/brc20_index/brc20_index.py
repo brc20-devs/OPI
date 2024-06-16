@@ -181,7 +181,7 @@ def is_positive_number_with_dot(s, do_strip=False):
 def get_number_extended_to_18_decimals(s, decimals, do_strip=False):
   if do_strip:
     s = s.strip()
-  
+
   if '.' in s:
     normal_part = s.split('.')[0]
     if len(s.split('.')[1]) > decimals or len(s.split('.')[1]) == 0: ## more decimal digit than allowed or no decimal digit after dot
@@ -417,9 +417,9 @@ def deploy_inscribe(block_height, inscription_id, deployer_pkScript, deployer_wa
   block_events_str += get_event_str(event, "deploy-inscribe", inscription_id) + EVENT_SEPARATOR
   event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
   brc20_events_insert_cache.append((event_id, event_types["deploy-inscribe"], block_height, inscription_id, json.dumps(event)))
-  
+
   brc20_tickers_insert_cache.append((tick, original_tick, max_supply, decimals, limit_per_mint, max_supply, block_height, is_self_mint == "true", inscription_id))
-  
+
   ticks[tick] = [max_supply, limit_per_mint, decimals, is_self_mint == "true", inscription_id]
 
 def mint_inscribe(block_height, inscription_id, minted_pkScript, minted_wallet, tick, original_tick, amount, parent_id):
@@ -442,7 +442,7 @@ def mint_inscribe(block_height, inscription_id, minted_pkScript, minted_wallet, 
   last_balance["overall_balance"] += amount
   last_balance["available_balance"] += amount
   brc20_historic_balances_insert_cache.append((minted_pkScript, minted_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
-  
+
   ticks[tick][0] -= amount
 
 def transfer_inscribe(block_height, inscription_id, source_pkScript, source_wallet, tick, original_tick, amount):
@@ -459,11 +459,11 @@ def transfer_inscribe(block_height, inscription_id, source_pkScript, source_wall
   event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
   brc20_events_insert_cache.append((event_id, event_types["transfer-inscribe"], block_height, inscription_id, json.dumps(event)))
   set_transfer_as_valid(inscription_id)
-  
+
   last_balance = get_last_balance(source_pkScript, tick)
   last_balance["available_balance"] -= amount
   brc20_historic_balances_insert_cache.append((source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
-  
+
   save_transfer_inscribe_event(inscription_id, event)
 
 def transfer_transfer_normal(block_height, inscription_id, spent_pkScript, spent_wallet, tick, original_tick, amount, using_tx_id):
@@ -486,17 +486,17 @@ def transfer_transfer_normal(block_height, inscription_id, spent_pkScript, spent
   event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
   brc20_events_insert_cache.append((event_id, event_types["transfer-transfer"], block_height, inscription_id, json.dumps(event)))
   set_transfer_as_used(inscription_id)
-  
+
   last_balance = get_last_balance(source_pkScript, tick)
   last_balance["overall_balance"] -= amount
   brc20_historic_balances_insert_cache.append((source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
-  
+
   if spent_pkScript != source_pkScript:
     last_balance = get_last_balance(spent_pkScript, tick)
   last_balance["overall_balance"] += amount
   last_balance["available_balance"] += amount
   brc20_historic_balances_insert_cache.append((spent_pkScript, spent_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, -1 * event_id)) ## negated to make a unique event_id
-  
+
   if spent_pkScript == '6a':
     brc20_tickers_burned_supply_update_cache[tick] = brc20_tickers_burned_supply_update_cache.get(tick, 0) + amount
 
@@ -520,7 +520,7 @@ def transfer_transfer_spend_to_fee(block_height, inscription_id, tick, original_
   event_id = block_start_max_event_id + len(brc20_events_insert_cache) + 1
   brc20_events_insert_cache.append((event_id, event_types["transfer-transfer"], block_height, inscription_id, json.dumps(event)))
   set_transfer_as_used(inscription_id)
-  
+
   last_balance = get_last_balance(source_pkScript, tick)
   last_balance["available_balance"] += amount
   brc20_historic_balances_insert_cache.append((source_pkScript, source_wallet, tick, last_balance["overall_balance"], last_balance["available_balance"], block_height, event_id))
@@ -580,12 +580,12 @@ def index_block(block_height, current_block_hash):
     update_event_hashes(block_height)
     cur.execute('''INSERT INTO brc20_block_hashes (block_height, block_hash) VALUES (%s, %s);''', (block_height, current_block_hash))
     return
-  
+
   cur_metaprotocol.execute('''SELECT ot.id, ot.inscription_id, ot.old_satpoint, ot.new_pkscript, ot.new_wallet, ot.sent_as_fee, oc."content", oc.content_type, onti.parent_id
                               FROM ord_transfers ot
                               LEFT JOIN ord_content oc ON ot.inscription_id = oc.inscription_id
                               LEFT JOIN ord_number_to_id onti ON ot.inscription_id = onti.inscription_id
-                              WHERE ot.block_height = %s 
+                              WHERE ot.block_height = %s
                                  AND onti.cursed_for_brc20 = false
                                  AND oc."content" is not null AND (oc."content"->>'p'='brc-20' OR oc."content"->>'p'='brc20-module' )
                               ORDER BY ot.id asc;''', (block_height,))
@@ -604,16 +604,16 @@ def index_block(block_height, current_block_hash):
   brc20_tickers_remaining_supply_update_cache = {}
   brc20_tickers_burned_supply_update_cache = {}
   brc20_historic_balances_insert_cache = []
-  
+
   idx = 0
   for transfer in transfers:
     idx += 1
     if idx % 100 == 0:
       print(idx, '/', len(transfers))
-    
+
     tx_id, inscr_id, old_satpoint, new_pkScript, new_addr, sent_as_fee, js, content_type, parent_id = transfer
     if parent_id is None: parent_id = ""
-    
+
     if sent_as_fee and old_satpoint == '': continue ## inscribed as fee
 
     if content_type is None: continue ## invalid inscription
@@ -634,7 +634,7 @@ def index_block(block_height, current_block_hash):
     except: continue ## invalid tick
     original_tick_len = utf8len(original_tick)
     if original_tick_len != 4 and original_tick_len != 5: continue ## invalid tick
-    
+
     # handle deploy
     if js["p"] == 'brc-20' and js["op"] == 'deploy' and old_satpoint == '':
       if "max" not in js: continue ## invalid inscription
@@ -664,13 +664,13 @@ def index_block(block_height, current_block_hash):
         if "self_mint" not in js: continue ## invalid inscription
         if js["self_mint"] != "true": continue ## invalid inscription
         is_self_mint = "true"
-        if max_supply == 0: 
+        if max_supply == 0:
           max_supply = (2**64-1) * (10**18) ## infinite(ish) mint
           if limit_per_mint == 0:
             limit_per_mint = (2**64-1) * (10**18)
       if max_supply == 0: continue ## invalid max supply
       deploy_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, original_tick, max_supply, decimals, limit_per_mint, is_self_mint)
-    
+
     # handle mint
     if js["p"] == 'brc-20' and js["op"] == 'mint' and old_satpoint == '':
       if "amt" not in js: continue ## invalid inscription
@@ -689,7 +689,7 @@ def index_block(block_height, current_block_hash):
         ## check parent token
         if ticks[tick][4] != parent_id: continue ## invalid parent token
       mint_inscribe(block_height, inscr_id, new_pkScript, new_addr, tick, original_tick, amount, parent_id)
-    
+
     # handle transfer
     if js["p"] == 'brc-20' and js["op"] == 'transfer':
       if "amt" not in js: continue ## invalid inscription
@@ -767,7 +767,7 @@ def execute_batch_insert(sql_start, cache, batch_size):
       sql = sql_start + ','.join([single_insert_sql_part for _ in range(elem_cnt)]) + ';'
       cur.execute(sql, [elem for sublist in cache[i:i+batch_size] for elem in sublist])
 
-      
+
 
 def check_for_reorg():
   cur.execute('select block_height, block_hash from brc20_block_hashes order by block_height desc limit 1;')
@@ -787,7 +787,7 @@ def check_for_reorg():
     if block[1] == h[1]: ## found reorg height by a matching hash
       print("REORG HEIGHT FOUND: " + str(h[0]))
       return h[0]
-  
+
   ## bigger than 10 block reorg is not supported by ord
   print("CRITICAL ERROR!!")
   sys.exit(1)
@@ -998,7 +998,7 @@ def reorg_on_extra_tables(reorg_height):
     pkscript = r[0]
     tick = r[1]
     cur.execute(''' select overall_balance, available_balance, wallet, block_height
-                    from brc20_historic_balances 
+                    from brc20_historic_balances
                     where block_height <= %s and pkscript = %s and tick = %s
                     order by id desc
                     limit 1;''', (reorg_height, pkscript, tick))
@@ -1006,7 +1006,7 @@ def reorg_on_extra_tables(reorg_height):
       balance = cur.fetchone()
       cur.execute('''insert into brc20_current_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height)
                       values (%s, %s, %s, %s, %s, %s);''', (pkscript, balance[2], tick, balance[0], balance[1], balance[3]))
-  
+
   cur.execute('truncate table brc20_unused_tx_inscrs restart identity;')
   cur.execute('''with tempp as (
                   select inscription_id, event, id, block_height
@@ -1028,7 +1028,7 @@ def reorg_on_extra_tables(reorg_height):
     block_height = row[2]
     inscription_id = row[3]
     cur.execute('''INSERT INTO brc20_unused_tx_inscrs (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)''', 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)''',
                     (inscription_id, new_event["tick"], int(new_event["amount"]), new_event["source_pkScript"], new_event["source_wallet"], event_id, block_height))
 
   cur.execute('delete from brc20_extras_block_hashes where block_height > %s;', (reorg_height,)) ## delete new block hashes
@@ -1064,9 +1064,9 @@ def initial_index_of_extra_tables():
     block_height = row[2]
     inscription_id = row[3]
     cur.execute('''INSERT INTO brc20_unused_tx_inscrs (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)''', 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)''',
                     (inscription_id, new_event["tick"], int(new_event["amount"]), new_event["source_pkScript"], new_event["source_wallet"], event_id, block_height))
-  
+
   print("resetting brc20_current_balances")
   cur.execute('truncate table brc20_current_balances restart identity;')
   print("selecting current balances")
@@ -1093,7 +1093,7 @@ def initial_index_of_extra_tables():
     block_height = r[5]
     cur.execute('''insert into brc20_current_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height)
                    values (%s, %s, %s, %s, %s, %s);''', (pkscript, wallet, tick, overall_balance, available_balance, block_height))
-  
+
   print("resetting brc20_extras_block_hashes")
   cur.execute('truncate table brc20_extras_block_hashes restart identity;')
   print("inserting brc20_extras_block_hashes")
@@ -1119,12 +1119,12 @@ def index_extra_tables(block_height, block_hash):
   if ebh_current_height >= block_height:
     print("reorg detected on extra tables, rolling back to: " + str(block_height))
     reorg_on_extra_tables(block_height - 1)
-  
+
   print("updating extra tables for block: " + str(block_height))
 
-  cur.execute('''select pkscript, wallet, tick, overall_balance, available_balance 
-                 from brc20_historic_balances 
-                 where block_height = %s 
+  cur.execute('''select pkscript, wallet, tick, overall_balance, available_balance
+                 from brc20_historic_balances
+                 where block_height = %s
                  order by id asc;''', (block_height,))
   balance_changes = cur.fetchall()
   if len(balance_changes) == 0:
@@ -1143,13 +1143,13 @@ def index_extra_tables(block_height, block_hash):
       idx += 1
       if idx % 200 == 0: print(idx, '/', len(balance_changes_map))
       cur.execute('''INSERT INTO brc20_current_balances (pkscript, wallet, tick, overall_balance, available_balance, block_height) VALUES (%s, %s, %s, %s, %s, %s)
-                     ON CONFLICT (pkscript, tick) 
+                     ON CONFLICT (pkscript, tick)
                      DO UPDATE SET overall_balance = EXCLUDED.overall_balance
                                 , available_balance = EXCLUDED.available_balance
                                 , block_height = EXCLUDED.block_height;''', new_balance + (block_height,))
-    
-  cur.execute('''select event, id, event_type, inscription_id 
-                 from brc20_events where block_height = %s and (event_type = %s or event_type = %s) 
+
+  cur.execute('''select event, id, event_type, inscription_id
+                 from brc20_events where block_height = %s and (event_type = %s or event_type = %s)
                  order by id asc;''', (block_height, event_types['transfer-inscribe'], event_types['transfer-transfer'],))
   events = cur.fetchall()
   if len(events) == 0:
@@ -1166,7 +1166,7 @@ def index_extra_tables(block_height, block_hash):
       if idx % 200 == 0: print(idx, '/', len(events))
       if new_event["event_type"] == 'transfer-inscribe':
         cur.execute('''INSERT INTO brc20_unused_tx_inscrs (inscription_id, tick, amount, current_holder_pkscript, current_holder_wallet, event_id, block_height)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (inscription_id) DO NOTHING''', 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s) ON CONFLICT (inscription_id) DO NOTHING''',
                         (new_event["inscription_id"], new_event["tick"], int(new_event["amount"]), new_event["source_pkScript"], new_event["source_wallet"], event_id, block_height))
       elif new_event["event_type"] == 'transfer-transfer':
         cur.execute('''DELETE FROM brc20_unused_tx_inscrs WHERE inscription_id = %s;''', (new_event["inscription_id"],))
@@ -1243,6 +1243,7 @@ while True:
   ## check if a new block is indexed
   cur_metaprotocol.execute('''SELECT coalesce(max(block_height), -1) as max_height from block_hashes;''')
   max_block_of_metaprotocol_db = cur_metaprotocol.fetchone()[0]
+
   cur.execute('''select max(block_height) from brc20_block_hashes;''')
   row = cur.fetchone()
   current_block = None
