@@ -555,10 +555,10 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
 
   fn is_text(inscription_content_type_option: &Option<Vec<u8>>) -> bool {
     if inscription_content_type_option.is_none() { return false; }
-    
+
     let inscription_content_type = inscription_content_type_option.as_ref().unwrap();
     let inscription_content_type_str = std::str::from_utf8(&inscription_content_type).unwrap_or("");
-    return inscription_content_type_str == "text/plain" || inscription_content_type_str.starts_with("text/plain;") || 
+    return inscription_content_type_str == "text/plain" || inscription_content_type_str.starts_with("text/plain;") ||
             inscription_content_type_str == "application/json" || inscription_content_type_str.starts_with("application/json;"); // NOTE: added application/json for JSON5 etc.
   }
 
@@ -572,7 +572,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     }
     let mut log_file = LOG_FILE.lock().unwrap();
     if log_file.as_ref().is_none() {
-      let chain_folder: String = match self.chain { 
+      let chain_folder: String = match self.chain {
         Chain::Mainnet => String::from(""),
         Chain::Testnet => String::from("testnet3/"),
         Chain::Signet => String::from("signet/"),
