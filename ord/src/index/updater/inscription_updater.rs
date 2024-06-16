@@ -621,7 +621,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
     let inscription_id = flotsam.inscription_id;
     let txcnt_of_inscr: i64 = self.id_to_txcnt.get(&inscription_id.store())?
         .map(|txcnt| txcnt.value())
-        .unwrap_or(-1) + 1;
+        .unwrap_or(0) + 1;
     self.id_to_txcnt.insert(&inscription_id.store(), &txcnt_of_inscr)?;
 
     let (unbound, sequence_number) = match flotsam.origin {
@@ -840,7 +840,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         }
 
         if !unbound && (is_json || is_text) {
-          self.write_to_file(format!("cmd;{0};insert;transfer;{1};;{new_satpoint};{send_to_coinbase};{2};{3};0",
+          self.write_to_file(format!("cmd;{0};insert;transfer;{1};;{new_satpoint};{send_to_coinbase};{2};{3};1",
                     self.height, flotsam.inscription_id,
                     hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
                     new_output_value.unwrap_or(&0)), false)?;
