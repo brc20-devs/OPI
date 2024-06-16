@@ -192,8 +192,7 @@ pub(crate) struct InscriptionEntry {
   pub(crate) sat: Option<Sat>,
   pub(crate) sequence_number: u32,
   pub(crate) timestamp: u32,
-  pub(crate) is_text: bool,
-  pub(crate) is_json: bool,
+  pub(crate) is_json_or_text: bool,
   pub(crate) is_cursed_for_brc20: bool,
   pub(crate) txcnt_limit: i16,
 }
@@ -208,7 +207,8 @@ pub(crate) type InscriptionEntryValue = (
   Option<u64>,        // sat
   u32,                // sequence number
   u32,                // timestamp
-  u8,                 // is_cursed|is_json|is_text| 0x0f
+  i8,                 // is_json_or_text
+  i8,                 // is_cursed_for_brc20
   i16,                // txcnt_limit
 );
 
@@ -227,7 +227,8 @@ impl Entry for InscriptionEntry {
       sat,
       sequence_number,
       timestamp,
-      flags,
+      is_json_or_text,
+      is_cursed_for_brc20,
       txcnt_limit,
     ): InscriptionEntryValue,
   ) -> Self {
@@ -241,9 +242,8 @@ impl Entry for InscriptionEntry {
       sat: sat.map(Sat),
       sequence_number,
       timestamp,
-      is_text: (flags & 0x01) != 0,
-      is_json: (flags & 0x02) != 0,
-      is_cursed_for_brc20: (flags & 0x04) != 0,
+      is_json_or_text: is_json_or_text != 0,
+      is_cursed_for_brc20: is_cursed_for_brc20 != 0,
       txcnt_limit,
     }
   }
@@ -259,9 +259,8 @@ impl Entry for InscriptionEntry {
       self.sat.map(Sat::n),
       self.sequence_number,
       self.timestamp,
-      (self.is_text as u8) << 0 |
-      (self.is_json as u8) << 1 |
-      (self.is_cursed_for_brc20 as u8) << 2,
+      if self.is_json_or_text { 1 } else { 0 },
+      if self.is_cursed_for_brc20 { 1 } else { 0 },
       self.txcnt_limit,
     )
   }

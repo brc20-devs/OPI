@@ -25,8 +25,6 @@ pub(super) struct Flotsam<'a> {
   tx_option: Option<&'a Transaction>,
 }
 
-// tracking first 2 transfers is enough for brc-20 metaprotocol
-
 lazy_static! {
   pub static ref TX_LIMITS: HashMap<String, i16> = {
       let mut m = HashMap::<String, i16>::new();
@@ -640,16 +638,13 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let entry = entry
           .map(|entry| InscriptionEntry::load(entry.value()))
           .unwrap();
-
-        let is_text = entry.is_text;
-        let is_json = entry.is_json;
+        let is_json_or_text = entry.is_json_or_text;
         let txcnt_limit = entry.txcnt_limit;
-
-        if (is_json || is_text) && txcnt_of_inscr <= txcnt_limit.into() { // only track non-cursed and first two transactions
+        if is_json_or_text && txcnt_of_inscr <= txcnt_limit.into() { // only track non-cursed and first two transactions
           self.write_to_file(format!("cmd;{0};insert;transfer;{1};{old_satpoint};{new_satpoint};{send_to_coinbase};{2};{3};{txcnt_of_inscr}",
-                                     self.height, flotsam.inscription_id,
-                                     hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
-                                     new_output_value.unwrap_or(&0)), false)?;
+                    self.height, flotsam.inscription_id,
+                    hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
+                    new_output_value.unwrap_or(&0)), false)?;
         }
 
         (
@@ -694,9 +689,10 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
         let inscription_content = inscription.body;
         let inscription_content_type = inscription.content_type;
         let inscription_metaprotocol = inscription.metaprotocol;
-
         let json_txcnt_limit = Self::get_json_tx_limit(&inscription_content);
         let is_json = json_txcnt_limit > 0;
+        let is_text = Self::is_text(&inscription_content_type);
+        let is_json_or_text = is_json || is_text;
 
         let mut is_brc20 = false;
         let mut is_brc20_approve_conditional = false;
@@ -708,8 +704,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           }
         }
 
-        let is_text = Self::is_text(&inscription_content_type);
-        let txcnt_limit = if !unbound && (is_json || is_text) {
+        let txcnt_limit = if !unbound && is_json_or_text {
           self.write_to_file(format!("cmd;{0};insert;number_to_id;{1};{2};{3};{4}", self.height, inscription_number, flotsam.inscription_id, if cursed_for_brc20 {"1"} else {"0"}, parent.map(|p| p.to_string()).unwrap_or(String::from(""))), false)?;
           // write content as minified json
           if is_json {
@@ -815,8 +810,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
             sat,
             sequence_number,
             timestamp: self.timestamp,
-            is_text,
-            is_json,
+            is_json_or_text,
             is_cursed_for_brc20: cursed_for_brc20,
             txcnt_limit,
           }
@@ -839,7 +833,7 @@ impl<'a, 'db, 'tx> InscriptionUpdater<'a, 'db, 'tx> {
           }
         }
 
-        if !unbound && (is_json || is_text) {
+        if !unbound && is_json_or_text {
           self.write_to_file(format!("cmd;{0};insert;transfer;{1};;{new_satpoint};{send_to_coinbase};{2};{3};1",
                     self.height, flotsam.inscription_id,
                     hex::encode(new_script_pubkey.unwrap_or(&ScriptBuf::new()).clone().into_bytes()),
