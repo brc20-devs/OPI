@@ -51,7 +51,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		line := scanner.Text()
 
 		// reset number/content
-		if strings.HasSuffix(line, ";block_start") {
+		if strings.Contains(line, ";block_start;") {
 			id2number = make(map[string]int, 0)
 			id2content = make(map[string]string, 0)
 
@@ -59,7 +59,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			if len(fields) != 4 {
 				continue
 			}
-			blocktimeStr := fields[2]
+			blocktimeStr := fields[3]
 			blocktime, err = strconv.Atoi(blocktimeStr)
 			if err != nil {
 				continue
@@ -204,9 +204,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if err != nil {
 			continue
 		}
-		if sequence == 2 {
-			sequence = 1
-		}
+		sequence -= 1
 
 		satoshiStr := fields[9]
 		satoshi, err := strconv.Atoi(satoshiStr)
