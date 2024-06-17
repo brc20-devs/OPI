@@ -64,7 +64,7 @@ func LoadBRC20InputDataFromDB(ctx context.Context, brc20Datas chan *model.Inscri
 
 func loadBRC20InputDataFromDBOnBatch(height int, queryLimit int, queryOffset int) (datas []*model.InscriptionBRC20Data, err error) {
 	sql := fmt.Sprintf(`
-SELECT ts.block_height, ts.inscription_id, ts.txcnt, ts.old_satpoint, ts.new_satpoint, ts.new_output_value,
+SELECT ts.block_height, ts.inscription_id, ts.txcnt-1, ts.old_satpoint, ts.new_satpoint, ts.new_output_value,
 	ts.new_pkscript, n2id.inscription_number, c.content, c.text_content, h.block_time
 FROM ord_transfers AS ts
 INNER JOIN ord_number_to_id AS n2id ON ts.inscription_id = n2id.inscription_id
