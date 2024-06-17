@@ -64,12 +64,12 @@ func LoadBRC20InputDataFromDB(ctx context.Context, brc20Datas chan *model.Inscri
 
 func loadBRC20InputDataFromDBOnBatch(height int, queryLimit int, queryOffset int) (datas []*model.InscriptionBRC20Data, err error) {
 	sql := fmt.Sprintf(`
-SELECT ts.block_height, ts.inscription_id, ts.txcnt, ts.old_satpoint, ts.new_satpoint,
+SELECT ts.block_height, ts.inscription_id, ts.txcnt, ts.old_satpoint, ts.new_satpoint, ts.new_output_value,
 	ts.new_pkscript, n2id.inscription_number, c.content, c.text_content, h.block_time
 FROM ord_transfers AS ts
 INNER JOIN ord_number_to_id AS n2id ON ts.inscription_id = n2id.inscription_id
 INNER JOIN ord_content AS c ON ts.inscription_id = c.inscription_id
-INNER JOIN block_hashes AS h ON ts.block_height = h.block_height 
+INNER JOIN block_hashes AS h ON ts.block_height = h.block_height
 WHERE ts.block_height = %d AND n2id.cursed_for_brc20 = false
 ORDER BY ts.id LIMIT %d OFFSET %d
 `, height, queryLimit, queryOffset)
@@ -87,6 +87,7 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 			txcnt              uint32
 			old_satpoint       string
 			new_satpoint       string
+			new_output_value   int64
 			new_pkscript       string
 			inscription_number int64
 			content            []byte
@@ -95,7 +96,7 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 		)
 
 		if err := rows.Scan(
-			&block_height, &inscription_id, &txcnt, &old_satpoint, &new_satpoint,
+			&block_height, &inscription_id, &txcnt, &old_satpoint, &new_satpoint, &new_output_value,
 			&new_pkscript, &inscription_number, &content, &text_content, &block_time); err != nil {
 			return datas, err
 		}
@@ -163,7 +164,7 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 			Idx:               uint32(inscription_number),
 			Vout:              uint32(vout),
 			Offset:            offset,
-			Satoshi:           546,
+			Satoshi:           uint64(new_output_value),
 			PkScript:          string(pkscript),
 			Fee:               0,
 			InscriptionNumber: inscription_number,
