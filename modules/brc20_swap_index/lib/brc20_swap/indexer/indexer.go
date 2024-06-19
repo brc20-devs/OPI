@@ -207,17 +207,19 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas, brc20Datas
 		nuser += len(m.UsersTokenBalanceDataMap)
 	}
 
-	log.Printf("process swap finish. module: %d, swap: %d, users: %d, validApprove: %d, invalidApprove: %d, validCommit: %d, invalidCommit: %d",
-		len(g.ModulesInfoMap),
-		nswap,
-		nuser,
+	if nuser > 0 {
+		log.Printf("process swap finish. module: %d, swap: %d, users: %d, validApprove: %d, invalidApprove: %d, validCommit: %d, invalidCommit: %d",
+			len(g.ModulesInfoMap),
+			nswap,
+			nuser,
 
-		len(g.InscriptionsValidApproveMap),
-		len(g.InscriptionsInvalidApproveMap),
+			len(g.InscriptionsValidApproveMap),
+			len(g.InscriptionsInvalidApproveMap),
 
-		len(g.InscriptionsValidCommitMap),
-		len(g.InscriptionsInvalidCommitMap),
-	)
+			len(g.InscriptionsValidCommitMap),
+			len(g.InscriptionsInvalidCommitMap),
+		)
+	}
 }
 
 func (g *BRC20ModuleIndexer) Init() {
