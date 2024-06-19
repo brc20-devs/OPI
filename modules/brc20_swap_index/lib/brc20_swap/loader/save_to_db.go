@@ -672,7 +672,7 @@ func SaveDataToDBModuleUserBalanceMap(tx *sql.Tx, height uint32,
 
 	stmtUserBalance, err := tx.Prepare(`
 INSERT INTO brc20_swap_user_balance(block_height, module_id, tick,
-	pkscript, swap_balance, available_balance, approveable_balance, cond_approveable_balance, withdraw_amount)
+	pkscript, swap_balance, available_balance, approveable_balance, cond_approveable_balance, ready_to_withdraw_amount)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 `)
 	if err != nil {
