@@ -3,6 +3,7 @@ package loader
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"os"
 	"strconv"
@@ -45,6 +46,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 
 	id2number := make(map[string]int, 0)
 	id2content := make(map[string]string, 0)
+	id2parent := make(map[string]string, 0)
 	blocktime := 0
 
 	for scanner.Scan() {
@@ -54,6 +56,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if strings.Contains(line, ";block_start;") {
 			id2number = make(map[string]int, 0)
 			id2content = make(map[string]string, 0)
+			id2parent = make(map[string]string, 0)
 
 			fields := strings.Split(line, ";")
 			if len(fields) != 4 {
@@ -72,10 +75,10 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		// number to id
 		if lineLen > number2IdLen && strings.Contains(line[:number2IdLen], "number_to_id") {
 			fields := strings.Split(line, ";")
-			if len(fields) != 7 {
+			if len(fields) != 8 {
 				continue
 			}
-			// cmd, HEIGHT, insert, number_to_id, NUM, ID, CURSED = fields
+			// cmd, HEIGHT, insert, number_to_id, NUM, ID, CURSED, parent = fields
 			if fields[6] == "1" { // cursed
 				continue
 			}
@@ -87,7 +90,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 
 			idStr := fields[5]
 			id2number[idStr] = number
-
+			id2parent[idStr] = fields[7]
 			continue
 		}
 
@@ -169,6 +172,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 				InscriptionNumber: 0,
 				ContentBody:       nil,
 				CreateIdxKey:      idStr,
+				Parent:            nil,
 
 				Height:    uint32(height),
 				BlockTime: uint32(blocktime),
@@ -251,6 +255,12 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			contentBody = id2content[idStr]
 		}
 
+		parent := ""
+		if sequence == 0 {
+			if _, ok := id2parent[idStr]; ok {
+				parent = id2parent[idStr]
+			}
+		}
 		if sequence == 0 && (contentBody == "" || number == 0) {
 			continue
 		}
@@ -269,6 +279,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			InscriptionNumber: int64(number),
 			ContentBody:       []byte(contentBody),
 			CreateIdxKey:      idStr,
+			Parent:            []byte(GetNFTIdForScript(parent)),
 
 			Height:    uint32(height),
 			BlockTime: uint32(blocktime),
@@ -284,4 +295,37 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 	}
 
 	return nil
+}
+
+func GetNFTIdForScript(inscriptionId string) (scriptId string) {
+	idParts := strings.Split(inscriptionId, "i")
+	if len(idParts) != 2 {
+		return ""
+	}
+	txidBin, err := hex.DecodeString(idParts[0])
+	if err != nil {
+		return ""
+	}
+	txid := string(utils.ReverseBytes(txidBin))
+	idx, err := strconv.Atoi(idParts[1])
+	if err != nil {
+		return ""
+	}
+
+	if idx == 0 {
+		return txid
+	}
+
+	var n [4]byte
+	binary.LittleEndian.PutUint32(n[:], uint32(idx))
+
+	if idx < 256 {
+		return txid + string(n[:1])
+	} else if idx < 65536 {
+		return txid + string(n[:2])
+	} else if idx < 16777216 {
+		return txid + string(n[:3])
+	} else {
+		return txid + string(n[:])
+	}
 }
