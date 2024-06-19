@@ -139,7 +139,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 			if err != nil {
 				continue
 			}
-			if int(height) > endHeight {
+			if int(height) >= endHeight {
 				break
 			}
 			if int(height) < startHeight {
@@ -199,7 +199,7 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if err != nil {
 			continue
 		}
-		if int(height) > endHeight {
+		if int(height) >= endHeight {
 			break
 		}
 
