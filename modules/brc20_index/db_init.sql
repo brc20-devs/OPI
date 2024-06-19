@@ -88,6 +88,6 @@ INSERT INTO public.brc20_indexer_version (indexer_version, db_version, event_has
 CREATE TABLE public.brc20_module_withdrawals (
 	id bigserial NOT NULL,
 	block_height int4 NOT NULL,
-	inscription_id text NOT NULL, -- withdraw id or block id
+	inscription_id text NOT NULL  -- withdraw id or block id
 );
 CREATE INDEX brc20_module_withdrawals_block_height_idx ON public.brc20_module_withdrawals USING btree (block_height);

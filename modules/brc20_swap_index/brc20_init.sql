@@ -148,7 +148,7 @@ CREATE TABLE public.brc20_swap_user_balance (
 	available_balance numeric(40,18) NOT NULL,
 	approveable_balance numeric(40,18) NOT NULL,
 	cond_approveable_balance numeric(40,18) NOT NULL,
-	withdrawable_balance numeric(40,18) NOT NULL
+	ready_to_withdraw_amount numeric(40,18) NOT NULL
 );
 CREATE INDEX brc20_swap_user_balance_block_height_idx ON public.brc20_swap_user_balance USING btree (block_height);
 CREATE INDEX brc20_swap_user_balance_module_id_idx ON public.brc20_swap_user_balance USING btree (module_id);
