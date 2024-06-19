@@ -122,7 +122,7 @@ func NewDecimalFromString(s string, maxPrecision int) (*Decimal, error) {
 
 		currPrecision = len(decimalPartStr)
 		if currPrecision > maxPrecision {
-			return nil, fmt.Errorf("decimal exceeds maximum precision: %s", s)
+			return nil, fmt.Errorf("decimal exceeds maximum precision(%d): %s", maxPrecision, s)
 		}
 		n := maxPrecision - currPrecision
 		for i := 0; i < n; i++ {
@@ -145,6 +145,11 @@ func NewDecimalFromString(s string, maxPrecision int) (*Decimal, error) {
 }
 
 func MustNewDecimalFromString(s string, maxPrecision int) *Decimal {
+	parts := strings.Split(s, ".")
+	if len(parts) == 2 {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+	}
 	val, err := NewDecimalFromString(s, maxPrecision)
 	if err != nil {
 		panic(err)
