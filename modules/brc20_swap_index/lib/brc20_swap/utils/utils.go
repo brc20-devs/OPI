@@ -132,13 +132,19 @@ func GetAddressFromScript(script []byte, params *chaincfg.Params) (string, error
 }
 
 func GetModuleFromScript(script []byte) (module string, ok bool) {
-	if len(script) < 34 || len(script) > 38 {
+	n := len(script)
+	if n < 34 || n > 38 {
 		return "", false
 	}
 	if script[0] != 0x6a {
 		return "", false
 	}
-	if int(script[1])+2 != len(script) {
+	if int(script[1])+2 != n {
+		return "", false
+	}
+
+	// remove trailling 0
+	if n > 34 && script[n-1] == 0 {
 		return "", false
 	}
 
