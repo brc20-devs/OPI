@@ -47,6 +47,9 @@ func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error
 	// get user's tokens to update
 	tokenBalance := g.GetUserTokenBalance(tokenInfo.Ticker, string(data.PkScript))
 
+	// update tokenBalance
+	tokenBalance.UpdateHeight = data.Height
+
 	body.BRC20Tick = tokenInfo.Ticker
 	mintInfo := model.NewInscriptionBRC20TickInfo(body.BRC20Tick, body.Operation, data)
 	mintInfo.Data.BRC20Amount = body.BRC20Amount
@@ -100,9 +103,6 @@ func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error
 	// update mint info
 	mintInfo.Data.BRC20Minted = balanceMinted.String()
 	mintInfo.Amount = balanceMinted
-
-	// update tokenBalance
-	tokenBalance.UpdateHeight = data.Height
 
 	if data.BlockTime > 0 {
 		tokenBalance.AvailableBalanceSafe = tokenBalance.AvailableBalanceSafe.Add(balanceMinted)
