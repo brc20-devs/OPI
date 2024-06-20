@@ -306,7 +306,6 @@ FROM brc20_swap_info
 
 	modulesInfoMap := make(map[string]*model.BRC20ModuleSwapInfo)
 	for rows.Next() {
-		var moduleId string
 		info := model.BRC20ModuleSwapInfo{
 			History:                               make([]*model.BRC20ModuleHistory, 0),
 			CommitInvalidMap:                      make(map[string]struct{}, 0),
@@ -321,7 +320,7 @@ FROM brc20_swap_info
 			ConditionalApproveStateBalanceDataMap: make(map[string]*model.BRC20ModuleConditionalApproveStateBalance, 0),
 		}
 		err := rows.Scan(
-			&moduleId,
+			&info.ID,
 			&info.Name,
 			&info.DeployerPkScript,
 			&info.SequencerPkScript,
@@ -332,7 +331,7 @@ FROM brc20_swap_info
 		if err != nil {
 			return nil, err
 		}
-		modulesInfoMap[moduleId] = &info
+		modulesInfoMap[info.ID] = &info
 	}
 	return modulesInfoMap, nil
 }
