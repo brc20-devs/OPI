@@ -202,6 +202,9 @@ func LoadBRC20InputDataFromOrdLog(fname string, brc20Datas chan *model.Inscripti
 		if int(height) >= endHeight {
 			break
 		}
+		if int(height) < startHeight {
+			continue
+		}
 
 		sequenceStr := fields[10]
 		sequence, err := strconv.Atoi(sequenceStr)
