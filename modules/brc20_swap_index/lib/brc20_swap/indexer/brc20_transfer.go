@@ -15,6 +15,11 @@ import (
 func (g *BRC20ModuleIndexer) GetTransferInfoByKey(createIdxKey string) (
 	transferInfo *model.InscriptionBRC20TickInfo, isInvalid bool) {
 	var ok bool
+
+	if _, ok := g.InscriptionsTransferRemoveMap[createIdxKey]; ok {
+		return
+	}
+
 	// transfer
 	transferInfo, ok = g.InscriptionsValidTransferMap[createIdxKey]
 	if !ok {
