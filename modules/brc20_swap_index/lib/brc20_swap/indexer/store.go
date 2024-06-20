@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"log"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -118,6 +119,12 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
 		zap.String("duration", time.Since(st).String()),
 		zap.Int("count", len(g.InscriptionsValidTransferMap)),
 	)
+
+	// update user valid TransferMap
+	for k, v := range g.InscriptionsValidTransferMap {
+		ticker := strings.ToLower(v.Tick)
+		g.UserTokensBalanceData[v.PkScript][ticker].ValidTransferMap[k] = v
+	}
 
 	st = time.Now()
 	if g.ModulesInfoMap, err = loader.LoadFromDBModuleInfoMap(); err != nil {

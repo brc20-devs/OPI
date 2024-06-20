@@ -178,6 +178,7 @@ INNER JOIN (
 			PkScript:            pkscript,
 			AvailableBalance:    ab.NewPrecition(uint(decimals)),
 			TransferableBalance: tb.NewPrecition(uint(decimals)),
+			ValidTransferMap:    make(map[string]*model.InscriptionBRC20TickInfo),
 		}
 
 		if _, ok := userTokensBalanceMap[pkscript]; !ok {
