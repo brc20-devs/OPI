@@ -129,6 +129,9 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionRemoveLiquidity(moduleInfo *mo
 
 	// update lp balance
 	usersLpBalanceInPool[f.PkScript] = userbalance.Sub(tokenLpAmt)
+	// set update flag
+	moduleInfo.LPTokenUsersBalanceUpdatedMap[poolPair+f.PkScript] = struct{}{}
+
 	lpsBalance[poolPair] = lpBalance.Sub(tokenLpAmt)
 
 	token0Balance := moduleInfo.GetUserTokenBalance(token0, f.PkScript)

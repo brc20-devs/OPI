@@ -156,6 +156,9 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionAddLiquidity(moduleInfo *model
 	lpbalance := usersLpBalanceInPool[f.PkScript]
 	lpbalance = lpbalance.Add(lpForUser)
 	usersLpBalanceInPool[f.PkScript] = lpbalance
+	// set update flag
+	moduleInfo.LPTokenUsersBalanceUpdatedMap[poolPair+f.PkScript] = struct{}{}
+
 	// user-lp-balance
 	lpsBalance, ok := moduleInfo.UsersLPTokenBalanceMap[f.PkScript]
 	if !ok {
@@ -169,6 +172,9 @@ func (g *BRC20ModuleIndexer) ProcessCommitFunctionAddLiquidity(moduleInfo *model
 		zerolpbalance := usersLpBalanceInPool[constant.ZERO_ADDRESS_PKSCRIPT]
 		zerolpbalance = zerolpbalance.Add(decimal.NewDecimal(1000, 18))
 		usersLpBalanceInPool[constant.ZERO_ADDRESS_PKSCRIPT] = zerolpbalance
+		// set update flag
+		moduleInfo.LPTokenUsersBalanceUpdatedMap[poolPair+constant.ZERO_ADDRESS_PKSCRIPT] = struct{}{}
+
 		// zerouser-lp-balance
 		zerolpsBalance, ok := moduleInfo.UsersLPTokenBalanceMap[constant.ZERO_ADDRESS_PKSCRIPT]
 		if !ok {
