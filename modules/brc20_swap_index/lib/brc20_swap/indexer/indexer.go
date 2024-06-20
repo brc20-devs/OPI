@@ -61,6 +61,10 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas, brc20Datas
 				}
 
 				// transfer
+
+				if _, ok := g.InscriptionsTransferRemoveMap[data.CreateIdxKey]; ok {
+					break
+				}
 				if transferInfo, isInvalid := g.GetTransferInfoByKey(data.CreateIdxKey); transferInfo != nil {
 					g.InscriptionsTransferRemoveMap[data.CreateIdxKey] = data.Height
 					g.Durty = true
