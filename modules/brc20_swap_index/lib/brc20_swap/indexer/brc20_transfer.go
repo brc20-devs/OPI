@@ -90,6 +90,8 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 		)
 		return errors.New("transfer, invalid from balance")
 	}
+	// set from
+	fromTokenBalance.UpdateHeight = data.Height
 
 	if isInvalid {
 		if g.EnableHistory {
@@ -112,9 +114,6 @@ func (g *BRC20ModuleIndexer) ProcessTransfer(data *model.InscriptionBRC20Data, t
 		)
 		return errors.New("transfer, invalid transfer")
 	}
-
-	// set from
-	fromTokenBalance.UpdateHeight = data.Height
 
 	fromTokenBalance.TransferableBalance = fromTokenBalance.TransferableBalance.Sub(transferInfo.Amount)
 	delete(fromTokenBalance.ValidTransferMap, data.CreateIdxKey)
@@ -267,6 +266,9 @@ func (g *BRC20ModuleIndexer) ProcessInscribeTransfer(data *model.InscriptionBRC2
 	}
 	tokenUsers[string(data.PkScript)] = tokenBalance
 
+	// update balance height
+	tokenBalance.UpdateHeight = data.Height
+
 	body.BRC20Tick = tokenInfo.Ticker
 
 	transferInfo := model.NewInscriptionBRC20TickInfo(body.BRC20Tick, body.Operation, data)
@@ -317,7 +319,6 @@ func (g *BRC20ModuleIndexer) ProcessInscribeTransfer(data *model.InscriptionBRC2
 	} else {
 		// Update available balance
 
-		tokenBalance.UpdateHeight = data.Height
 		// fixme: The available safe balance may not decrease, the current transfer usage of available balance source is not accurately distinguished.
 		tokenBalance.AvailableBalanceSafe = tokenBalance.AvailableBalanceSafe.Sub(balanceTransfer)
 
