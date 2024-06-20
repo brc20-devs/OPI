@@ -168,6 +168,7 @@ func (g *BRC20ModuleIndexer) ProcessUpdateLatestBRC20Loop(brc20Datas, brc20Datas
 					log.Printf("(%d) process failed: %s", g.BestHeight, err)
 				}
 			} else {
+				// caution: need update but durty == false
 				g.Durty = true
 			}
 			break

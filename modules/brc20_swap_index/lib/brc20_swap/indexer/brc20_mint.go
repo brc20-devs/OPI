@@ -67,7 +67,8 @@ func (g *BRC20ModuleIndexer) ProcessMint(data *model.InscriptionBRC20Data) error
 			tokenInfo.History = append(tokenInfo.History, history)
 			tokenInfo.HistoryMint = append(tokenInfo.HistoryMint, history)
 		}
-		return errors.New(fmt.Sprintf("mint %s, but mint out", body.BRC20Tick))
+		return nil
+		// return errors.New(fmt.Sprintf("mint %s, but mint out", body.BRC20Tick))
 	}
 
 	// update tinfo
