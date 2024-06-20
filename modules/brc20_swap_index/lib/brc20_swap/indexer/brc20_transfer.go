@@ -312,6 +312,7 @@ func (g *BRC20ModuleIndexer) ProcessInscribeTransfer(data *model.InscriptionBRC2
 	} else {
 		// Update available balance
 
+		tokenBalance.UpdateHeight = data.Height
 		// fixme: The available safe balance may not decrease, the current transfer usage of available balance source is not accurately distinguished.
 		tokenBalance.AvailableBalanceSafe = tokenBalance.AvailableBalanceSafe.Sub(balanceTransfer)
 

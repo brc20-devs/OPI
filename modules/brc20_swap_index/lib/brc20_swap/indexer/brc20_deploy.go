@@ -134,6 +134,8 @@ func (g *BRC20ModuleIndexer) ProcessDeploy(data *model.InscriptionBRC20Data) err
 	g.InscriptionsTickerInfoMap[uniqueLowerTicker] = tokenInfo
 
 	tokenBalance := &model.BRC20TokenBalance{Ticker: body.BRC20Tick, PkScript: data.PkScript}
+	// update tokenBalance
+	tokenBalance.UpdateHeight = data.Height
 
 	if g.EnableHistory {
 		historyObj := model.NewBRC20History(constant.BRC20_HISTORY_TYPE_N_INSCRIBE_DEPLOY, true, false, tinfo, nil, data)
