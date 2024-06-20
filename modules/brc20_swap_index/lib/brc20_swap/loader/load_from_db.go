@@ -203,6 +203,9 @@ func UserTokensBalanceMap2TokenUsersBalanceMap(
 
 	for pkscript, userTokensBalance := range userTokensMap {
 		for tick, balance := range userTokensBalance {
+			if balance.AvailableBalance.Sign() == 0 && balance.TransferableBalance.Sign() == 0 {
+				continue
+			}
 			tokenUsersMap[tick][pkscript] = balance
 		}
 	}
@@ -442,11 +445,14 @@ INNER JOIN (
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 
-		lowerTiker := strings.ToLower(tick)
-		if _, ok := result[lowerTiker]; !ok {
-			result[lowerTiker] = make(map[string]*model.BRC20ModuleTokenBalance)
+		if _, ok := result[pkscript]; !ok {
+			result[pkscript] = make(map[string]*model.BRC20ModuleTokenBalance)
 		}
-		result[lowerTiker][pkscript] = &balance
+		balance.Tick = tick
+		balance.PkScript = pkscript
+
+		lowerTiker := strings.ToLower(tick)
+		result[pkscript][lowerTiker] = &balance
 	}
 
 	return result, nil

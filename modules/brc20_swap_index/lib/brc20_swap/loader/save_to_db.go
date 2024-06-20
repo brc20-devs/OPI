@@ -100,7 +100,7 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 }
 
 func SaveDataToDBTickerBalanceMap(tx *sql.Tx, height uint32,
-	tokenUsersBalanceData map[string]map[string]*model.BRC20TokenBalance,
+	userTokensBalanceData map[string]map[string]*model.BRC20TokenBalance,
 ) {
 	stmtUserBalance, err := tx.Prepare(`
 INSERT INTO brc20_user_balance(block_height, tick, pkscript, available_balance, transferable_balance)
@@ -110,15 +110,16 @@ VALUES ($1, $2, $3, $4, $5)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 
-	for _, holdersMap := range tokenUsersBalanceData {
+	for _, tokensMap := range userTokensBalanceData {
 		// holders
-		for _, balanceData := range holdersMap {
+		for _, balanceData := range tokensMap {
 			if balanceData.UpdateHeight != height {
 				continue
 			}
 
 			// save balance db
-			res, err := stmtUserBalance.Exec(height, balanceData.Ticker,
+			res, err := stmtUserBalance.Exec(height,
+				balanceData.Ticker,
 				balanceData.PkScript,
 				balanceData.AvailableBalance.String(),
 				balanceData.TransferableBalance.String(),
@@ -680,15 +681,15 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	}
 
 	for moduleId, info := range modulesInfoMap {
-		for _, holdersMap := range info.TokenUsersBalanceDataMap {
-			// holders
-			for _, balanceData := range holdersMap {
+		for _, tokensMap := range info.UsersTokenBalanceDataMap {
+			for _, balanceData := range tokensMap {
 				if balanceData.UpdateHeight != height {
 					continue
 				}
 
 				// save balance db
-				res, err := stmtUserBalance.Exec(height, moduleId, balanceData.Tick,
+				res, err := stmtUserBalance.Exec(height, moduleId,
+					balanceData.Tick,
 					balanceData.PkScript,
 					balanceData.SwapAccountBalance.String(),
 					balanceData.AvailableBalance.String(),
