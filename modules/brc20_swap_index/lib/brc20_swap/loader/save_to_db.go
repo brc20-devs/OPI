@@ -757,16 +757,16 @@ VALUES ($1, $2, $3, $4, $5)
 		log.Panic("PG Statements Wrong: ", err)
 	}
 	for moduleId, info := range modulesInfoMap {
-		for ticker, holdersMap := range info.LPTokenUsersBalanceMap {
-			// holders
-			for holder, balanceData := range holdersMap {
-				if _, ok := info.LPTokenUsersBalanceUpdatedMap[ticker+holder]; !ok {
+		for pkscript, tokensMap := range info.UsersLPTokenBalanceMap {
+			for pool, balanceData := range tokensMap {
+				if _, ok := info.LPTokenUsersBalanceUpdatedMap[pool+pkscript]; !ok {
 					continue
 				}
 
 				// save balance db
-				res, err := stmtLpBalance.Exec(height, moduleId, ticker,
-					holder,
+				res, err := stmtLpBalance.Exec(height, moduleId,
+					pool,
+					pkscript,
 					balanceData.String(),
 				)
 				if err != nil {

@@ -243,24 +243,25 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 
 	// [tick][address]balanceData
 	st = time.Now()
-	if tabm, err := loader.LoadFromDBModuleUserBalanceMap(mid, nil, nil); err != nil {
+	if atbm, err := loader.LoadFromDBModuleUserBalanceMap(mid, nil, nil); err != nil {
 		log.Fatal("LoadFromDBModuleUserBalanceMap failed: ", err)
 	} else {
-		info.TokenUsersBalanceDataMap = tabm
-		info.UsersTokenBalanceDataMap = make(map[string]map[string]*model.BRC20ModuleTokenBalance)
-		for tick, abs := range tabm {
-			for addr, balance := range abs {
-				if _, ok := info.UsersTokenBalanceDataMap[addr]; !ok {
-					info.UsersTokenBalanceDataMap[addr] = make(map[string]*model.BRC20ModuleTokenBalance)
+		info.UsersTokenBalanceDataMap = atbm
+		info.TokenUsersBalanceDataMap = make(map[string]map[string]*model.BRC20ModuleTokenBalance)
+		for addr, tbs := range atbm {
+			for tick, balance := range tbs {
+				if _, ok := info.TokenUsersBalanceDataMap[tick]; !ok {
+					info.TokenUsersBalanceDataMap[tick] = make(map[string]*model.BRC20ModuleTokenBalance)
 				}
-				// [address][tick]balanceData
-				info.UsersTokenBalanceDataMap[addr][tick] = balance
+
+				// [tick][address]balanceData
+				info.TokenUsersBalanceDataMap[tick][addr] = balance
 			}
 		}
 
 		logger.Log.Info("LoadFromDBModuleUserBalanceMap",
 			zap.String("duration", time.Since(st).String()),
-			zap.Int("count", len(tabm)),
+			zap.Int("count", len(atbm)),
 			zap.Int("addresses", len(info.UsersTokenBalanceDataMap)),
 		)
 	}
@@ -281,15 +282,15 @@ func loadFromDBSwapModuleInfo(mid string, info *model.BRC20ModuleSwapInfo) {
 	if userLpBalanceMap, err := loader.LoadFromDBModuleUserLpBalanceMap(mid, nil, nil); err != nil {
 		log.Fatal("LoadFromDBModuleUserLpBalanceMap failed: ", err)
 	} else {
-		info.LPTokenUsersBalanceMap = userLpBalanceMap
+		info.UsersLPTokenBalanceMap = userLpBalanceMap
 
-		for pool, abs := range userLpBalanceMap {
-			for addr, balance := range abs {
-				if _, ok := info.UsersLPTokenBalanceMap[addr]; !ok {
-					info.UsersLPTokenBalanceMap[addr] = make(map[string]*decimal.Decimal)
+		for addr, pbs := range userLpBalanceMap {
+			for pool, balance := range pbs {
+				if _, ok := info.LPTokenUsersBalanceMap[pool]; !ok {
+					info.LPTokenUsersBalanceMap[pool] = make(map[string]*decimal.Decimal)
 				}
 				// [address][pool]balance
-				info.UsersLPTokenBalanceMap[addr][pool] = balance
+				info.LPTokenUsersBalanceMap[pool][addr] = balance
 			}
 		}
 

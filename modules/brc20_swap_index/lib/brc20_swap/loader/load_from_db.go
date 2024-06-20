@@ -541,10 +541,10 @@ INNER JOIN (
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
 
-		if _, ok := result[pool]; !ok {
-			result[pool] = make(map[string]*decimal.Decimal)
+		if _, ok := result[pkscript]; !ok {
+			result[pkscript] = make(map[string]*decimal.Decimal)
 		}
-		result[pool][pkscript] = &lpBalance
+		result[pkscript][pool] = &lpBalance
 	}
 
 	return result, nil
