@@ -61,7 +61,7 @@ func GetBrc20LatestHeightFromDB() (int, error) {
 
 func LoadFromDbTickerInfoMap() (map[string]*model.BRC20TokenInfo, error) {
 	rows, err := SwapDB.Query(`
-SELECT t1.block_height, t1.tick, t1.max_supply, t1.decimals, t1.limit_per_mint, t1.remaining_supply, t1.pkscript_deployer
+SELECT t1.block_height, t1.tick, t1.max_supply, t1.decimals, t1.limit_per_mint, t1.minted, t1.pkscript_deployer, t1.self_mint
 FROM brc20_ticker_info t1
 INNER JOIN (
 	SELECT MAX(block_height) as block_height, tick FROM brc20_ticker_info GROUP BY tick
@@ -73,43 +73,48 @@ INNER JOIN (
 	defer rows.Close()
 
 	var (
-		height    int
-		tick      string
-		max       string
-		decimals  uint8
-		limit     string
-		remaining string
-		pkscript  string
+		height   int
+		tick     string
+		max      string
+		decimals uint8
+		limit    string
+		minted   string
+		pkscript string
+		selfmint bool
 	)
 	tickerInfoMap := make(map[string]*model.BRC20TokenInfo)
 
 	for rows.Next() {
-		if err := rows.Scan(&height, &tick, &max, &decimals, &limit, &remaining, &pkscript); err != nil {
+		if err := rows.Scan(&height, &tick, &max, &decimals, &limit, &minted, &pkscript, &selfmint); err != nil {
 			return nil, err
 		}
 
-		nremaining := decimal.MustNewDecimalFromString(remaining, int(decimals))
+		nminted := decimal.MustNewDecimalFromString(minted, int(decimals))
 		nmax := decimal.MustNewDecimalFromString(max, int(decimals))
-		minted := nmax.Sub(nremaining)
 
 		uniqueLowerTicker := strings.ToLower(tick)
 
+		sselfmint := ""
+		if selfmint {
+			sselfmint = "true"
+		}
 		tickerInfoMap[uniqueLowerTicker] = &model.BRC20TokenInfo{
 			Ticker: tick,
 			Deploy: &model.InscriptionBRC20TickInfo{
+				SelfMint:    selfmint,
 				Max:         nmax,
 				Decimal:     decimals,
 				Limit:       decimal.MustNewDecimalFromString(limit, int(decimals)),
-				TotalMinted: minted,
+				TotalMinted: nminted,
 				Data: &model.InscriptionBRC20InfoResp{
-					Operation:     "",
+					Operation:     "deploy",
 					BRC20Tick:     tick,
 					BRC20Max:      max,
 					BRC20Limit:    limit,
 					BRC20Amount:   "",
 					BRC20Decimal:  fmt.Sprintf("%d", decimals),
-					BRC20Minted:   "",
-					BRC20SelfMint: "",
+					BRC20Minted:   minted,
+					BRC20SelfMint: sselfmint,
 				},
 			},
 		}

@@ -70,7 +70,7 @@ func SaveDataToDBTickerInfoMap(tx *sql.Tx, height uint32,
 	inscriptionsTickerInfoMap map[string]*model.BRC20TokenInfo,
 ) {
 	stmtTickerInfo, err := tx.Prepare(`
-INSERT INTO brc20_ticker_info(block_height, tick, max_supply, decimals, limit_per_mint, remaining_supply, pkscript_deployer)
+INSERT INTO brc20_ticker_info(block_height, tick, max_supply, decimals, limit_per_mint, minted, pkscript_deployer, self_mint)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 `)
 
@@ -86,8 +86,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7)
 			info.Deploy.Data.BRC20Max,
 			info.Deploy.Data.BRC20Decimal,
 			info.Deploy.Data.BRC20Limit,
-			info.Deploy.Max.Sub(info.Deploy.TotalMinted).String(),
+			info.Deploy.TotalMinted.String(),
 			info.Deploy.PkScript,
+			info.Deploy.SelfMint,
 		)
 		if err != nil {
 			log.Panic("PG Statements Exec Wrong: ", err)

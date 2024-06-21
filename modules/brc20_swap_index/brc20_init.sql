@@ -6,8 +6,9 @@ CREATE TABLE public.brc20_ticker_info (
     max_supply numeric(40,18) NOT NULL,
     decimals int4 NOT NULL,
     limit_per_mint numeric(40,18) NOT NULL,
-    remaining_supply numeric(40,18) NOT NULL,
-    pkscript_deployer bytea NOT NULL
+    minted numeric(40,18) NOT NULL,
+    pkscript_deployer bytea NOT NULL,
+    self_mint boolean
 );
 CREATE INDEX brc20_ticker_info_block_height_idx ON public.brc20_ticker_info USING btree (block_height);
 CREATE INDEX brc20_ticker_info_tick_idx ON public.brc20_ticker_info USING btree (tick);
