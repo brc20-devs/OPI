@@ -161,10 +161,19 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 			return datas, err
 		}
 
+		idParts := strings.Split(inscription_id, "i")
+		idx, err := strconv.Atoi(idParts[1])
+		if err != nil {
+			logger.Log.Error(err.Error(),
+				zap.String("inscription_id", inscription_id),
+			)
+			return datas, err
+		}
+
 		data := model.InscriptionBRC20Data{
 			IsTransfer:        is_transfer,
 			TxId:              string(utils.ReverseBytes(txidBytes)),
-			Idx:               uint32(inscription_number),
+			Idx:               uint32(idx),
 			Vout:              uint32(vout),
 			Offset:            offset,
 			Satoshi:           uint64(new_output_value),
