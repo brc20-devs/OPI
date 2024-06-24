@@ -44,11 +44,13 @@ func LoadBRC20InputDataFromDB(ctx context.Context, brc20Datas chan *model.Inscri
 				}
 			}
 		}
-		logger.Log.Debug("LoadBRC20InputDataFromDB",
-			zap.Int("height", height),
-			zap.Int("count", count),
-			zap.String("duration", time.Since(st).String()))
 
+		if height%100 == 0 {
+			logger.Log.Debug("LoadBRC20InputDataFromDB",
+				zap.Int("height", height),
+				zap.Int("count", count),
+				zap.String("duration", time.Since(st).String()))
+		}
 		for _, data := range blkDatas {
 			brc20Datas <- data
 		}
