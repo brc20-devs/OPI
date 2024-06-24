@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/unisat-wallet/libbrc20-indexer/model"
+	"github.com/unisat-wallet/libbrc20-indexer/utils"
 	"go.uber.org/zap"
 )
 
@@ -162,7 +163,7 @@ ORDER BY ts.id LIMIT %d OFFSET %d
 
 		data := model.InscriptionBRC20Data{
 			IsTransfer:        is_transfer,
-			TxId:              string(txidBytes),
+			TxId:              string(utils.ReverseBytes(txidBytes)),
 			Idx:               uint32(inscription_number),
 			Vout:              uint32(vout),
 			Offset:            offset,
