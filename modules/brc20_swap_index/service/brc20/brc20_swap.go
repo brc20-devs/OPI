@@ -98,7 +98,7 @@ func ProcessUpdateLatestBRC20SwapInit(ctx context.Context, startHeight, endHeigh
 	g := &brc20swapIndexer.BRC20ModuleIndexer{}
 	g.Init()
 
-	logger.Log.Info("loading from database...")
+	logger.Log.Info("loading from database...", zap.Int("start", startHeight), zap.Int("end", endHeight))
 	st := time.Now()
 	g.LoadDataFromDB(startHeight)
 	logger.Log.Info("load from database done", zap.String("elapse", time.Since(st).String()))
