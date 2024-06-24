@@ -48,7 +48,7 @@ func DumpBRC20InputData(fname string, brc20Datas chan interface{}, hexBody bool)
 			address,
 			data.InscriptionNumber,
 			body,
-			hex.EncodeToString([]byte(data.CreateIdxKey)),
+			data.CreateIdxKey,
 			data.Height,
 			data.TxIdx,
 			data.BlockTime,
