@@ -124,6 +124,7 @@ func ProcessUpdateLatestBRC20SwapInit(ctx context.Context, startHeight, endHeigh
 			}
 
 			if g.Durty {
+				g.UpdateBRC20BlockEventsHash()
 				g.SaveDataToDB(lastHeight)
 				g.PurgeHistoricalData()
 			}

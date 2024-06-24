@@ -1,6 +1,8 @@
 package indexer
 
 import (
+	"encoding/hex"
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -9,6 +11,7 @@ import (
 
 	"brc20query/logger"
 
+	"github.com/unisat-wallet/libbrc20-indexer/constant"
 	"github.com/unisat-wallet/libbrc20-indexer/decimal"
 	"github.com/unisat-wallet/libbrc20-indexer/loader"
 	"github.com/unisat-wallet/libbrc20-indexer/model"
@@ -25,6 +28,78 @@ func (g *BRC20ModuleIndexer) PurgeHistoricalData() {
 	g.InscriptionsCommitRemoveMap = make(map[string]uint32, 0)
 }
 
+func (g *BRC20ModuleIndexer) UpdateBRC20BlockEventsHash() {
+	eventsPerBlock := []string{}
+	for _, hIdx := range g.AllHistory {
+		buf := g.HistoryData[hIdx]
+		h := &model.BRC20History{}
+		h.Unmarshal(buf)
+
+		if !h.Valid {
+			continue
+		}
+
+		pkScriptFrom := hex.EncodeToString([]byte(h.PkScriptFrom))
+		pkScriptTo := hex.EncodeToString([]byte(h.PkScriptTo))
+
+		inscription_id := h.Inscription.InscriptionId
+		ticker := strings.ToLower(h.Inscription.Data.BRC20Tick)
+		info := g.InscriptionsTickerInfoMap[ticker]
+
+		var res string
+		if h.Type == constant.BRC20_HISTORY_TYPE_N_INSCRIBE_DEPLOY {
+			res = fmt.Sprintf("deploy-inscribe;%s;%s;%s;%s;%s;%d;%s;%b",
+				inscription_id,
+				pkScriptTo,
+				ticker,
+				info.Ticker,
+				info.Deploy.Max.String(),
+				info.Deploy.Decimal,
+				info.Deploy.Limit.String(),
+				info.Deploy.SelfMint,
+			)
+
+		} else if h.Type == constant.BRC20_HISTORY_TYPE_N_INSCRIBE_MINT {
+			res = fmt.Sprintf("mint-inscribe;%s;%s;%s;%s;%s",
+				inscription_id,
+				pkScriptTo,
+				ticker,
+				info.Ticker,
+				h.Amount,
+				// res += event["parent_id"] // fixme
+			)
+
+		} else if h.Type == constant.BRC20_HISTORY_TYPE_N_INSCRIBE_TRANSFER {
+			res = fmt.Sprintf("transfer-inscribe;%s;%s;%s;%s;%s",
+				inscription_id,
+				pkScriptTo,
+				ticker,
+				info.Ticker,
+				h.Amount,
+			)
+		} else if h.Type == constant.BRC20_HISTORY_TYPE_N_TRANSFER {
+			res = fmt.Sprintf("transfer-transfer;%s;%s;%s;%s;%s;%s",
+				inscription_id,
+				pkScriptFrom,
+				pkScriptTo,
+				ticker,
+				info.Ticker,
+				h.Amount,
+			)
+		} else if h.Type == constant.BRC20_HISTORY_MODULE_TYPE_N_WITHDRAW {
+			res = fmt.Sprintf("withdraw-transfer;%s;%s;%s;%s;%s;%s",
+				inscription_id,
+				pkScriptFrom,
+				pkScriptTo,
+				ticker,
+				info.Ticker,
+				h.Amount,
+			)
+		}
+		eventsPerBlock = append(eventsPerBlock, res)
+	}
+
+}
 func (g *BRC20ModuleIndexer) SaveDataToDB(height uint32) {
 	tx, err := loader.SwapDB.Begin()
 	if err != nil {
