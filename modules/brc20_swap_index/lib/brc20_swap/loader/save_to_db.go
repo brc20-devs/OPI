@@ -71,7 +71,7 @@ func SaveDataToDBTickerInfoMap(tx *sql.Tx, height uint32,
 ) {
 	stmtTickerInfo, err := tx.Prepare(`
 INSERT INTO brc20_ticker_info(block_height, tick, max_supply, decimals, limit_per_mint, minted, pkscript_deployer, self_mint)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 `)
 
 	if err != nil {
