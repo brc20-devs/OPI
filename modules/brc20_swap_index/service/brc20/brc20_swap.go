@@ -105,7 +105,6 @@ func ProcessUpdateLatestBRC20SwapInit(ctx context.Context, startHeight, endHeigh
 
 	brc20DatasPerHeight := make([]*brc20swapModel.InscriptionBRC20Data, 0, 1024)
 	lastHeight := uint32(startHeight)
-	blockSt := time.Now()
 	for data := range brc20DatasParse {
 		if len(brc20DatasPerHeight) > 0 && lastHeight != data.Height {
 			brc20DatasPerHeightChan := make(chan interface{}, 10240)
@@ -116,13 +115,7 @@ func ProcessUpdateLatestBRC20SwapInit(ctx context.Context, startHeight, endHeigh
 				close(brc20DatasPerHeightChan)
 			}()
 
-			{
-				st := time.Now()
-				g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeightChan, nil)
-				logger.Log.Debug("process brc20 data",
-					zap.Uint32("height", lastHeight),
-					zap.String("elapse", time.Since(st).String()))
-			}
+			g.ProcessUpdateLatestBRC20Loop(brc20DatasPerHeightChan, nil)
 
 			select {
 			case <-ctx.Done():
@@ -131,19 +124,11 @@ func ProcessUpdateLatestBRC20SwapInit(ctx context.Context, startHeight, endHeigh
 			}
 
 			if g.Durty {
-				st := time.Now()
 				g.SaveDataToDB(lastHeight)
-				logger.Log.Debug("save to database",
-					zap.Uint32("height", lastHeight),
-					zap.String("elapse", time.Since(st).String()))
 				g.PurgeHistoricalData()
 			}
 
 			brc20DatasPerHeight = make([]*brc20swapModel.InscriptionBRC20Data, 0, 1024)
-			logger.Log.Debug("process block",
-				zap.Uint32("height", lastHeight),
-				zap.String("elapse", time.Since(blockSt).String()))
-			blockSt = time.Now()
 		}
 		lastHeight = data.Height
 		brc20DatasPerHeight = append(brc20DatasPerHeight, data)
