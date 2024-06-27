@@ -187,7 +187,7 @@ func (g *BRC20ModuleIndexer) LoadDataFromDB(height int) {
 	// )
 
 	st = time.Now()
-	if g.InscriptionsValidTransferMap, err = loader.LoadFromDBValidTransferMap(); err != nil {
+	if g.InscriptionsValidTransferMap, err = loader.LoadFromDBValidTransferMap(g.InscriptionsTickerInfoMap); err != nil {
 		log.Fatal("LoadFromDBvalidTransferMap failed: ", err)
 	}
 	logger.Log.Info("LoadFromDBvalidTransferMap",

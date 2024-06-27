@@ -175,14 +175,14 @@ INNER JOIN (
 			decimals = info.Deploy.Decimal
 		}
 
-		ab := decimal.MustNewDecimalFromString(available, decimal.MAX_PRECISION)
-		tb := decimal.MustNewDecimalFromString(transferable, decimal.MAX_PRECISION)
+		ab := decimal.MustNewDecimalFromString(available, int(decimals))
+		tb := decimal.MustNewDecimalFromString(transferable, int(decimals))
 
 		balance := &model.BRC20TokenBalance{
 			Ticker:              tick,
 			PkScript:            pkscript,
-			AvailableBalance:    ab.NewPrecition(uint(decimals)),
-			TransferableBalance: tb.NewPrecition(uint(decimals)),
+			AvailableBalance:    ab,
+			TransferableBalance: tb,
 			ValidTransferMap:    make(map[string]*model.InscriptionBRC20TickInfo),
 		}
 
@@ -247,7 +247,7 @@ INNER JOIN (
 	return res, nil
 }
 
-func LoadFromDBValidTransferMap() (res map[string]*model.InscriptionBRC20TickInfo, err error) {
+func LoadFromDBValidTransferMap(tokenInfos map[string]*model.BRC20TokenInfo) (res map[string]*model.InscriptionBRC20TickInfo, err error) {
 	query := `
 SELECT t1.block_height, t1.create_key, t1.tick, t1.pkscript, t1.amount,
 	   t1.inscription_number, t1.inscription_id,
@@ -271,12 +271,27 @@ WHERE t3.moved IS NULL
 	for rows.Next() {
 		var inscId string
 		t := model.InscriptionBRC20TickInfo{}
-		if err := rows.Scan(&t.Height, &t.CreateIdxKey, &t.Tick, &t.PkScript, &t.Amount,
+
+		var (
+			amount   string
+			decimals uint8
+		)
+
+		if err := rows.Scan(&t.Height, &t.CreateIdxKey, &t.Tick, &t.PkScript, &amount,
 			&t.InscriptionNumber, &inscId,
 			&t.TxId, &t.Vout, &t.Satoshi, &t.Offset,
 		); err != nil {
 			return nil, err
 		}
+
+		lowerTick := strings.ToLower(t.Tick)
+		if info, ok := tokenInfos[lowerTick]; !ok {
+			return nil, fmt.Errorf("token info not found for ticker: %s", lowerTick)
+		} else {
+			decimals = info.Deploy.Decimal
+		}
+		t.Amount = decimal.MustNewDecimalFromString(amount, int(decimals))
+
 		t.Meta = &model.InscriptionBRC20Data{
 			IsTransfer:        false,
 			TxId:              t.TxId,
