@@ -48,7 +48,7 @@ func buildSQLWhereInStr(colValsPair [][]string, startIndex ...int) (conds []stri
 }
 
 func GetBrc20LatestHeightFromDB() (int, error) {
-	row := SwapDB.QueryRow(`SELECT block_height FROM brc20_valid_transfer ORDER BY block_height DESC LIMIT 1`)
+	row := SwapDB.QueryRow(`SELECT block_height FROM brc20_user_balance ORDER BY block_height DESC LIMIT 1`)
 	height := 0
 	if err := row.Scan(&height); err != nil {
 		if err == sql.ErrNoRows {
